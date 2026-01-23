@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>B-drive | Cloud Management Console</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
+        
+        :root {
+            --bdrive-dark: #020617;
+            --bdrive-navy: #0f172a;
+            --bdrive-cyan: #06b6d4;
+            --bdrive-blue: #3b82f6;
+        }
+
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            background-color: #f1f5f9; 
+            color: #1e293b;
+        }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .sidebar-item-active {
+            background: linear-gradient(90deg, rgba(6, 182, 212, 0.1) 0%, rgba(6, 182, 212, 0) 100%);
+            border-left: 3px solid var(--bdrive-cyan);
+            color: var(--bdrive-cyan);
+        }
+
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+
+        .price-card:focus-within {
+            ring: 2px;
+            ring-color: var(--bdrive-cyan);
+            border-color: var(--bdrive-cyan);
+        }
+        
+        .animate-fade-in {
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        input::-webkit-outer-spin-button,
+        input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo } = React;
+
+        /**
+         * CONFIGURACIÓN CRÍTICA:
+         * Pega aquí la URL de tu Cloudflare Worker una vez desplegado.
+         * Ejemplo: "https://cotizador-bdrive.tu-usuario.workers.dev"
+         */
+        const API_BASE_URL = "https://cotizadorbdrive.smartpasses.workers.dev/"; 
+
+        const App = () => {
+            const [view, setView] = useState('dashboard');
+            const [services, setServices] = useState([]);
+            const [quotes, setQuotes] = useState([]);
+            const [selectedService, setSelectedService] = useState(null);
+            const [loading, setLoading] = useState(true);
+            const [saving, setSaving] = useState(false);
+            const [message, setMessage] = useState(null);
+            const [searchQuery, setSearchQuery] = useState("");
+
+            useEffect(() => {
+                fetchInitialData();
+            }, []);
+
+            useEffect(() => {
+                if (!loading) {
+                    const timer = setTimeout(() => {
+                        if (window.lucide) {
+                            window.lucide.createIcons();
+                        }
+                    }, 150);
+                    return () => clearTimeout(timer);
+                }
+            }, [view, services, selectedService, loading, message, searchQuery, quotes]);
+
+            const fetchInitialData = async () => {
+                setLoading(true);
+                try {
+                    if (API_BASE_URL) {
+                        // Intentar obtener servicios reales del KV a través del Worker
+                        const sRes = await fetch(`${API_BASE_URL}/api/services`);
+                        if (sRes.ok) {
+                            const data = await sRes.json();
+                            setServices(data);
+                        } else {
+                            throw new Error("Error al obtener servicios");
+                        }
+
+                        // Intentar obtener cotizaciones reales de D1
+                        const qRes = await fetch(`${API_BASE_URL}/api/quotes`);
+                        if (qRes.ok) {
+                            const qData = await qRes.json();
+                            setQuotes(qData);
+                        }
+                    } else {
+                        // Datos Mock por defecto si no hay URL configurada
+                        setServices([
+                            {
+                                servicio_id: "noc_001",
+                                nombre: "NOC & Help Desk",
+                                categoria: "Infraestructura",
+                                icono: "activity",
+                                estado: "activo",
+                                calculo: {
+                                    matriz_precios: {
+                                        "8x5": {
+                                            "bajo": { precio_final: 2100, unidad: "MXN/día" },
+                                            "medio": { precio_final: 5100, unidad: "MXN/día" },
+                                            "alto": { precio_final: 7200, unidad: "MXN/día" }
+                                        },
+                                        "7x24": {
+                                            "bajo": { precio_final: 144000, unidad: "MXN/mes" },
+                                            "medio": { precio_final: 144000, unidad: "MXN/mes" },
+                                            "alto": { precio_final: 144000, unidad: "MXN/mes" }
+                                        }
+                                    }
+                                }
+                            }
+                        ]);
+                    }
+                } catch (err) {
+                    console.error(err);
+                    showStatus("Error de conexión: Revisa la URL del Worker o la configuración CORS", "error");
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const showStatus = (text, type) => {
+                setMessage({ text, type });
+                setTimeout(() => setMessage(null), 4000);
+            };
+
+            const handlePriceChange = (horario, volumen, value) => {
+                const updated = { ...selectedService };
+                updated.calculo.matriz_precios[horario][volumen].precio_final = parseFloat(value) || 0;
+                setSelectedService(updated);
+            };
+
+            const saveChanges = async () => {
+                if (!API_BASE_URL) {
+                    showStatus("Error: API_BASE_URL no configurada en el código.", "error");
+                    return;
+                }
+
+                setSaving(true);
+                try {
+                    const response = await fetch(`${API_BASE_URL}/api/services/${selectedService.servicio_id}`, { 
+                        method: 'PUT', 
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(selectedService) 
+                    });
+
+                    if (response.ok) {
+                        showStatus("Sincronización exitosa con Cloudflare KV Store.", "success");
+                        // Actualizamos la lista local
+                        setServices(services.map(s => s.servicio_id === selectedService.servicio_id ? selectedService : s));
+                    } else {
+                        throw new Error("Fallo en la actualización");
+                    }
+                } catch (err) {
+                    showStatus("Error al sincronizar con la nube. Verifica el Worker.", "error");
+                } finally {
+                    setSaving(false);
+                }
+            };
+
+            const StatCard = ({ title, value, icon, color }) => (
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <p className="text-sm font-medium text-slate-500">{title}</p>
+                            <h3 className="text-2xl font-bold mt-1 text-slate-900">{value}</h3>
+                        </div>
+                        <div className={`p-3 rounded-xl bg-${color}-50 text-${color}-600`}>
+                            <i data-lucide={icon} className="w-5 h-5"></i>
+                        </div>
+                    </div>
+                </div>
+            );
+
+            if (loading) return (
+                <div className="h-screen w-full flex flex-col items-center justify-center bg-slate-900 text-white">
+                    <div className="w-12 h-12 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                    <p className="font-bold tracking-widest text-xs uppercase opacity-50">Sincronizando con B-drive Cloud...</p>
+                </div>
+            );
+
+            return (
+                <div className="flex h-screen overflow-hidden">
+                    {/* Navegación Lateral */}
+                    <aside className="w-72 bg-slate-900 text-slate-300 flex flex-col border-r border-slate-800">
+                        <div className="p-6 flex items-center space-x-3">
+                            <div className="bg-cyan-500 p-2 rounded-xl shadow-lg shadow-cyan-500/20">
+                                <i data-lucide="zap" className="w-6 h-6 text-white"></i>
+                            </div>
+                            <div>
+                                <h1 className="text-xl font-bold text-white tracking-tight">B-drive</h1>
+                                <span className="text-[10px] text-cyan-400 font-bold uppercase tracking-widest">Cloud Admin</span>
+                            </div>
+                        </div>
+
+                        <nav className="mt-6 flex-1 px-3 space-y-1 custom-scrollbar overflow-y-auto">
+                            <button onClick={() => setView('dashboard')} className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all ${view === 'dashboard' ? 'sidebar-item-active text-white bg-slate-800/50' : 'hover:bg-slate-800/30'}`}>
+                                <i data-lucide="layout-dashboard" className="w-5 h-5"></i>
+                                <span className="font-medium text-sm">Dashboard Global</span>
+                            </button>
+
+                            <button onClick={() => setView('quotes')} className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all ${view === 'quotes' ? 'sidebar-item-active text-white bg-slate-800/50' : 'hover:bg-slate-800/30'}`}>
+                                <i data-lucide="file-text" className="w-5 h-5"></i>
+                                <span className="font-medium text-sm">Cotizaciones Reales</span>
+                            </button>
+
+                            <div className="pt-6 pb-2 px-4">
+                                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Gestión de Precios</span>
+                            </div>
+
+                            {services.map(s => (
+                                <button key={s.servicio_id} onClick={() => { setSelectedService(s); setView('editor'); }} className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all group ${selectedService?.servicio_id === s.servicio_id && view === 'editor' ? 'sidebar-item-active text-white bg-slate-800/50' : 'hover:bg-slate-800/30'}`}>
+                                    <div className="flex items-center space-x-3">
+                                        <i data-lucide={s.icono || 'box'} className="w-4 h-4"></i>
+                                        <span className="text-sm font-medium">{s.nombre}</span>
+                                    </div>
+                                </button>
+                            ))}
+                        </nav>
+                        
+                        <div className="p-6 border-t border-slate-800">
+                            <div className="flex items-center space-x-3 text-xs opacity-50">
+                                <div className={`w-2 h-2 rounded-full ${API_BASE_URL ? 'bg-green-500 animate-pulse' : 'bg-yellow-500'}`}></div>
+                                <span>{API_BASE_URL ? 'Conectado a Cloud Worker' : 'Modo Offline (Configurar URL)'}</span>
+                            </div>
+                        </div>
+                    </aside>
+
+                    {/* Contenido Principal */}
+                    <main className="flex-1 flex flex-col min-w-0 overflow-hidden bg-slate-50">
+                        {/* Header Superior */}
+                        <header className="h-20 glass-panel border-b border-slate-200 px-8 flex items-center justify-between z-10">
+                            <h2 className="text-lg font-bold text-slate-800 capitalize">
+                                {view === 'quotes' ? 'Historial de Cotizaciones (D1)' : view === 'dashboard' ? 'Resumen de Operaciones' : `Editando: ${selectedService?.nombre}`}
+                            </h2>
+                            <div className="flex items-center space-x-4">
+                                {!API_BASE_URL && (
+                                    <span className="bg-amber-100 text-amber-700 px-3 py-1 rounded-full text-[10px] font-bold animate-pulse">
+                                        API_BASE_URL REQUERIDA
+                                    </span>
+                                )}
+                                <div className="h-10 w-10 rounded-xl bg-slate-800 text-white flex items-center justify-center">
+                                    <i data-lucide="user" className="w-5 h-5"></i>
+                                </div>
+                            </div>
+                        </header>
+
+                        <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+                            {message && (
+                                <div className={`animate-fade-in mb-8 p-4 rounded-xl flex items-center shadow-lg ${message.type === 'success' ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'}`}>
+                                    <i data-lucide={message.type === 'success' ? 'check-circle' : 'alert-circle'} className="w-5 h-5 mr-3"></i>
+                                    <span className="font-semibold">{message.text}</span>
+                                </div>
+                            )}
+
+                            {view === 'dashboard' && (
+                                <div className="animate-fade-in space-y-8">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                                        <StatCard title="Servicios en KV" value={services.length} icon="database" color="cyan" />
+                                        <StatCard title="Total Cotizaciones" value={quotes.length} icon="file-text" color="blue" />
+                                        <StatCard title="Disponibilidad" value="100%" icon="activity" color="emerald" />
+                                        <StatCard title="Carga del Worker" value="Baja" icon="cpu" color="indigo" />
+                                    </div>
+
+                                    <div className="bg-white rounded-3xl p-8 border border-slate-100 shadow-sm">
+                                        <div className="flex justify-between items-center mb-6">
+                                            <h3 className="text-lg font-bold">Actividad Reciente</h3>
+                                            <button onClick={() => setView('quotes')} className="text-cyan-600 text-xs font-bold hover:underline">Ver Auditoría Completa</button>
+                                        </div>
+                                        <div className="space-y-4">
+                                            {quotes.length > 0 ? quotes.slice(0, 5).map(q => (
+                                                <div key={q.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                                                    <div className="flex items-center space-x-4">
+                                                        <div className="p-3 bg-white rounded-xl text-slate-400">
+                                                            <i data-lucide="file-text" className="w-5 h-5"></i>
+                                                        </div>
+                                                        <div>
+                                                            <p className="font-bold text-slate-800">{q.cliente}</p>
+                                                            <p className="text-xs text-slate-400">{q.servicio} • {q.fecha}</p>
+                                                        </div>
+                                                    </div>
+                                                    <p className="font-bold text-cyan-600">${q.monto.toLocaleString()} MXN</p>
+                                                </div>
+                                            )) : (
+                                                <div className="text-center py-10 text-slate-400 italic text-sm">No hay cotizaciones registradas aún.</div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {view === 'quotes' && (
+                                <div className="animate-fade-in bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
+                                    <div className="p-6 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
+                                        <h3 className="font-bold text-slate-700">Registros en Cloudflare D1</h3>
+                                        <button onClick={fetchInitialData} className="p-2 text-slate-400 hover:text-cyan-600 transition-transform active:rotate-180">
+                                            <i data-lucide="refresh-cw" className="w-4 h-4"></i>
+                                        </button>
+                                    </div>
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-left border-collapse">
+                                            <thead>
+                                                <tr className="bg-white border-b border-slate-100">
+                                                    <th className="p-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest">ID Único</th>
+                                                    <th className="p-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Cliente</th>
+                                                    <th className="p-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Servicio</th>
+                                                    <th className="p-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Fecha / Hora</th>
+                                                    <th className="p-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Inversión</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-100">
+                                                {quotes.map(q => (
+                                                    <tr key={q.id} className="hover:bg-slate-50/50 transition-all">
+                                                        <td className="p-6 text-sm font-mono text-cyan-600 font-bold">{q.id}</td>
+                                                        <td className="p-6 text-sm font-semibold text-slate-800">{q.cliente}</td>
+                                                        <td className="p-6 text-sm text-slate-500">{q.servicio}</td>
+                                                        <td className="p-6 text-sm text-slate-400">{q.fecha}</td>
+                                                        <td className="p-6 text-sm font-bold text-slate-900 text-right">${q.monto.toLocaleString()} MXN</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            )}
+
+                            {view === 'editor' && selectedService && (
+                                <div className="animate-fade-in max-w-5xl mx-auto">
+                                    <div className="flex items-center justify-between mb-8">
+                                        <div>
+                                            <h3 className="text-2xl font-bold text-slate-900">{selectedService.nombre}</h3>
+                                            <p className="text-slate-500 text-sm">Modifica los valores base almacenados en Cloudflare KV.</p>
+                                        </div>
+                                        <button 
+                                            onClick={saveChanges}
+                                            disabled={saving}
+                                            className="bg-bdrive-cyan hover:bg-cyan-600 text-white px-8 py-3.5 rounded-2xl font-bold flex items-center shadow-lg shadow-cyan-500/20 transition-all active:scale-95 disabled:opacity-50"
+                                        >
+                                            {saving ? <div className="animate-spin h-5 w-5 border-2 border-white/30 border-t-white rounded-full mr-3"></div> : <i data-lucide="save" className="w-5 h-5 mr-3"></i>}
+                                            {saving ? "Publicando..." : "Sincronizar KV"}
+                                        </button>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 gap-8">
+                                        {Object.keys(selectedService.calculo.matriz_precios).map(horario => (
+                                            <div key={horario} className="bg-white rounded-3xl p-8 border border-slate-100 shadow-sm relative overflow-hidden">
+                                                <div className="flex items-center space-x-3 mb-8">
+                                                    <div className="w-1.5 h-6 bg-cyan-500 rounded-full"></div>
+                                                    <h3 className="text-lg font-bold text-slate-800 uppercase tracking-wide">Modalidad Cobertura: {horario}</h3>
+                                                </div>
+                                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                                    {['bajo', 'medio', 'alto'].map(volumen => (
+                                                        <div key={volumen} className="bg-slate-50 rounded-2xl p-6 border border-slate-100 hover:bg-white hover:border-cyan-100 hover:shadow-xl transition-all group">
+                                                            <div className="flex justify-between items-center mb-4">
+                                                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Nivel {volumen}</label>
+                                                                <span className="text-[10px] font-bold text-cyan-600 bg-cyan-50 px-2 py-0.5 rounded uppercase">{selectedService.calculo.matriz_precios[horario][volumen].unidad}</span>
+                                                            </div>
+                                                            <div className="relative">
+                                                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 font-bold text-xl">$</span>
+                                                                <input 
+                                                                    type="number" 
+                                                                    value={selectedService.calculo.matriz_precios[horario][volumen].precio_final}
+                                                                    onChange={(e) => handlePriceChange(horario, volumen, e.target.value)}
+                                                                    className="w-full pl-10 pr-4 py-4 bg-white rounded-xl border-2 border-transparent focus:border-cyan-500 outline-none text-2xl font-bold text-slate-800 shadow-inner transition-all"
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    
+                                    <div className="mt-8 bg-blue-50 border border-blue-100 rounded-2xl p-6 flex items-start space-x-4">
+                                        <div className="p-2 bg-blue-100 rounded-xl text-blue-600">
+                                            <i data-lucide="info" className="w-5 h-5"></i>
+                                        </div>
+                                        <p className="text-sm text-blue-800 leading-relaxed">
+                                            <strong>Nota de Sincronización:</strong> Al presionar "Sincronizar KV", el Worker de B-drive recibirá los nuevos valores y los inyectará en el motor de cálculo del Chatbot en milisegundos.
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </main>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
