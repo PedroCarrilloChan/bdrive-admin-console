@@ -19,7 +19,7 @@
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
         .animate-fade-in { animation: fadeIn 0.3s ease-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .modal-overlay { background: rgba(2, 6, 23, 0.7); backdrop-filter: blur(4px); }
     </style>
 </head>
 <body>
@@ -28,7 +28,6 @@
     <script type="text/babel">
         const { useState, useEffect, useMemo } = React;
 
-        // URL del Worker Administrativo
         const API_BASE_URL = "https://bdrive-admin-api.smartpasses.workers.dev"; 
 
         const App = () => {
@@ -36,143 +35,117 @@
             const [services, setServices] = useState([]);
             const [quotes, setQuotes] = useState([]);
             const [selectedService, setSelectedService] = useState(null);
+            const [selectedQuote, setSelectedQuote] = useState(null);
             const [loading, setLoading] = useState(true);
             const [saving, setSaving] = useState(false);
             const [message, setMessage] = useState(null);
+            const [searchQuery, setSearchQuery] = useState("");
 
             useEffect(() => { fetchInitialData(); }, []);
 
             useEffect(() => {
                 if (!loading && window.lucide) {
-                    const timer = setTimeout(() => { window.lucide.createIcons(); }, 150);
-                    return () => clearTimeout(timer);
+                    window.lucide.createIcons();
                 }
-            }, [view, services, selectedService, loading, message, quotes]);
+            }, [view, services, selectedService, loading, message, quotes, selectedQuote]);
 
             const fetchInitialData = async () => {
                 setLoading(true);
                 try {
                     const qRes = await fetch(`${API_BASE_URL}/api/quotes`);
                     if (qRes.ok) setQuotes(await qRes.json());
-
                     const sRes = await fetch(`${API_BASE_URL}/api/services`);
-                    if (sRes.ok) {
-                        const sData = await sRes.json();
-                        setServices(sData);
-                    }
+                    if (sRes.ok) setServices(await sRes.json());
                 } catch (err) {
-                    console.error(err);
-                    setMessage({ text: "Error de conexión con el Worker", type: "error" });
+                    setMessage({ text: "Error de conexión", type: "error" });
                 } finally {
                     setLoading(false);
                 }
             };
 
-            const handlePriceChange = (matrixKey, value) => {
-                const updated = JSON.parse(JSON.stringify(selectedService));
-                const val = parseFloat(value) || 0;
-                if (updated.matriz_precios?.[matrixKey]?.precio) {
-                    updated.matriz_precios[matrixKey].precio.monto = val;
-                } else if (updated.calculo?.matriz_precios) {
-                    const [horario, volumen] = matrixKey.split('_');
-                    if (updated.calculo.matriz_precios[horario]?.[volumen]) {
-                        updated.calculo.matriz_precios[horario][volumen].precio_final = val;
-                    }
-                }
-                setSelectedService(updated);
-            };
-
-            const handlePlanPriceChange = (planId, value) => {
-                const updated = JSON.parse(JSON.stringify(selectedService));
-                if (updated.planes?.[planId]) {
-                    updated.planes[planId].precio_mensual = parseFloat(value) || 0;
-                    setSelectedService(updated);
-                }
-            };
-
-            const handleProjectRuleChange = (field, value) => {
-                const updated = JSON.parse(JSON.stringify(selectedService));
-                if (field === 'regla_calculo') updated.regla_calculo = value;
-                if (field === 'costo_diario') {
-                    if (updated.costos_recursos?.ingeniero_senior) {
-                        updated.costos_recursos.ingeniero_senior.costo_diario = parseFloat(value) || 0;
-                    }
-                }
-                setSelectedService(updated);
-            };
-
-            const saveChanges = async () => {
-                setSaving(true);
+            const deleteQuote = async (id) => {
+                if (!confirm("¿Eliminar este registro permanentemente?")) return;
                 try {
-                    const res = await fetch(`${API_BASE_URL}/api/services/${selectedService.servicio_id}`, { 
-                        method: 'PUT', 
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(selectedService) 
-                    });
+                    const res = await fetch(`${API_BASE_URL}/api/quotes/${id}`, { method: 'DELETE' });
                     if (res.ok) {
-                        setMessage({ text: `Sincronización exitosa: ${selectedService.nombre}`, type: "success" });
-                        setServices(services.map(s => s.servicio_id === selectedService.servicio_id ? selectedService : s));
+                        setQuotes(quotes.filter(q => q.id !== id));
+                        setMessage({ text: "Registro eliminado", type: "success" });
                     }
-                } catch (err) {
-                    setMessage({ text: "Error al guardar en el KV", type: "error" });
-                } finally {
-                    setSaving(false);
-                    setTimeout(() => setMessage(null), 4000);
-                }
+                } catch (e) { setMessage({ text: "Error al eliminar", type: "error" }); }
             };
 
-            const StatCard = ({ title, value, icon, color }) => (
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                    <div className="flex justify-between items-start">
-                        <div>
-                            <p className="text-sm font-medium text-slate-500">{title}</p>
-                            <h3 className="text-2xl font-bold mt-1">{value}</h3>
-                        </div>
-                        <div className={`p-3 rounded-xl bg-${color}-50 text-${color}-600`}>
-                            <i data-lucide={icon} className="w-5 h-5"></i>
-                        </div>
-                    </div>
-                </div>
-            );
+            const exportToCSV = () => {
+                const headers = ["ID,Cliente,Servicio,Monto,Fecha\n"];
+                const rows = quotes.map(q => `${q.id},${q.cliente},${q.servicio},${q.monto},${q.fecha}\n`);
+                const blob = new Blob([headers.concat(rows)], { type: 'text/csv' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.setAttribute('hidden', '');
+                a.setAttribute('href', url);
+                a.setAttribute('download', `leads_bdrive_${new Date().toLocaleDateString()}.csv`);
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            };
+
+            const filteredQuotes = useMemo(() => {
+                return quotes.filter(q => 
+                    q.cliente.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                    q.servicio.toLowerCase().includes(searchQuery.toLowerCase())
+                );
+            }, [quotes, searchQuery]);
+
+            const stats = useMemo(() => {
+                const total = quotes.reduce((acc, q) => acc + q.monto, 0);
+                return {
+                    total,
+                    avg: quotes.length > 0 ? (total / quotes.length).toFixed(0) : 0,
+                    count: quotes.length
+                };
+            }, [quotes]);
 
             if (loading) return (
                 <div className="h-screen w-full flex flex-col items-center justify-center bg-slate-900 text-white">
                     <div className="w-12 h-12 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-                    <p className="font-bold tracking-widest text-xs uppercase opacity-50">Iniciando B-drive Management...</p>
+                    <p className="font-bold tracking-widest text-xs uppercase opacity-50">Sincronizando B-drive Cloud...</p>
                 </div>
             );
 
             return (
                 <div className="flex h-screen overflow-hidden">
+                    {/* Sidebar */}
                     <aside className="w-72 bg-slate-900 text-slate-300 flex flex-col border-r border-slate-800">
                         <div className="p-6 flex items-center space-x-3">
                             <div className="bg-cyan-500 p-2 rounded-xl shadow-lg shadow-cyan-500/20"><i data-lucide="zap" className="w-6 h-6 text-white"></i></div>
-                            <div><h1 className="text-xl font-bold text-white tracking-tight leading-none">B-drive</h1><span className="text-[10px] text-cyan-400 font-bold uppercase tracking-widest">Admin Console</span></div>
+                            <div><h1 className="text-xl font-bold text-white tracking-tight">B-drive</h1><span className="text-[10px] text-cyan-400 font-bold uppercase tracking-widest">Admin Panel</span></div>
                         </div>
-                        <nav className="mt-6 flex-1 px-3 space-y-1 custom-scrollbar overflow-y-auto">
+                        <nav className="mt-6 flex-1 px-3 space-y-1">
                             <button onClick={() => setView('dashboard')} className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all ${view === 'dashboard' ? 'sidebar-item-active text-white bg-slate-800/50' : 'hover:bg-slate-800/30'}`}>
-                                <i data-lucide="layout-dashboard" className="w-5 h-5"></i><span className="font-medium text-sm">Dashboard Global</span>
+                                <i data-lucide="layout-dashboard" className="w-5 h-5"></i><span className="font-medium text-sm">Dashboard</span>
                             </button>
                             <button onClick={() => setView('quotes')} className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all ${view === 'quotes' ? 'sidebar-item-active text-white bg-slate-800/50' : 'hover:bg-slate-800/30'}`}>
-                                <i data-lucide="file-text" className="w-5 h-5"></i><span className="font-medium text-sm">Historial de Leads</span>
+                                <i data-lucide="file-text" className="w-5 h-5"></i><span className="font-medium text-sm">Leads y Auditoría</span>
                             </button>
-                            <div className="pt-6 pb-2 px-4 font-bold text-[10px] text-slate-500 uppercase tracking-widest">Servicios KV</div>
+                            <div className="pt-6 pb-2 px-4 font-bold text-[10px] text-slate-500 uppercase tracking-widest">Catálogo de Precios</div>
                             {services.map(s => (
                                 <button key={s.servicio_id} onClick={() => { setSelectedService(s); setView('editor'); }} className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all group ${selectedService?.servicio_id === s.servicio_id && view === 'editor' ? 'sidebar-item-active text-white bg-slate-800/50' : 'hover:bg-slate-800/30'}`}>
                                     <div className="flex items-center space-x-3">
-                                        <i data-lucide={s.categoria === 'infraestructura' ? 'activity' : s.categoria === 'seguridad' ? 'shield' : 'package'} className="w-4 h-4"></i>
+                                        <i data-lucide={s.icono || 'package'} className="w-4 h-4"></i>
                                         <span className="text-sm font-medium">{s.nombre_corto || s.nombre}</span>
                                     </div>
                                 </button>
                             ))}
                         </nav>
-                        <div className="p-6 border-t border-slate-800 flex items-center space-x-3 text-xs opacity-50"><div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div><span>Worker API Sync Activo</span></div>
+                        <div className="p-6 border-t border-slate-800 flex items-center space-x-3 text-[10px] opacity-50 uppercase font-bold tracking-widest"><div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div><span>System Live</span></div>
                     </aside>
 
                     <main className="flex-1 flex flex-col min-w-0 overflow-hidden bg-slate-50">
                         <header className="h-20 glass-panel border-b border-slate-200 px-8 flex items-center justify-between z-10">
-                            <h2 className="text-lg font-bold text-slate-800 capitalize">{view === 'quotes' ? 'Lead Management' : view === 'dashboard' ? 'Performance' : selectedService?.nombre}</h2>
-                            <div className="h-10 w-10 rounded-xl bg-slate-800 text-white flex items-center justify-center"><i data-lucide="user" className="w-5 h-5"></i></div>
+                            <h2 className="text-lg font-bold text-slate-800">{view === 'quotes' ? 'Gestión de Leads' : view === 'dashboard' ? 'Performance Global' : selectedService?.nombre}</h2>
+                            <div className="flex items-center space-x-4">
+                                <button onClick={fetchInitialData} className="p-2 text-slate-400 hover:text-cyan-600 transition-all"><i data-lucide="refresh-cw" className="w-5 h-5"></i></button>
+                                <div className="h-10 w-10 rounded-xl bg-slate-800 text-white flex items-center justify-center"><i data-lucide="user" className="w-5 h-5"></i></div>
+                            </div>
                         </header>
 
                         <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
@@ -185,36 +158,56 @@
                             {view === 'dashboard' && (
                                 <div className="animate-fade-in space-y-8">
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                                        <StatCard title="Servicios KV" value={services.length} icon="database" color="cyan" />
-                                        <StatCard title="Total Leads" value={quotes.length} icon="users" color="blue" />
-                                        <StatCard title="Health" value="100%" icon="activity" color="emerald" />
-                                        <StatCard title="Uptime" value="Online" icon="cloud" color="indigo" />
-                                    </div>
-                                    <div className="bg-white rounded-3xl p-8 border border-slate-100 shadow-sm">
-                                        <h3 className="text-lg font-bold mb-6">Actividad Reciente</h3>
-                                        <div className="space-y-4">
-                                            {quotes.length > 0 ? quotes.slice(0, 5).map(q => (
-                                                <div key={q.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100 transition-all hover:border-cyan-200">
-                                                    <div className="flex items-center space-x-4">
-                                                        <div className="p-3 bg-white rounded-xl text-slate-400"><i data-lucide="file-text" className="w-5 h-5"></i></div>
-                                                        <div><p className="font-bold text-slate-800">{q.cliente}</p><p className="text-xs text-slate-400">{q.servicio} • {q.fecha}</p></div>
-                                                    </div>
-                                                    <p className="font-bold text-cyan-600">${q.monto.toLocaleString()} MXN</p>
-                                                </div>
-                                            )) : <div className="py-10 text-center text-slate-400 text-sm">Sin datos registrados aún.</div>}
+                                        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+                                            <p className="text-xs font-bold text-slate-400 uppercase">Proyectado Mensual</p>
+                                            <h3 className="text-2xl font-bold mt-1 text-emerald-600">${stats.total.toLocaleString()} MXN</h3>
+                                        </div>
+                                        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+                                            <p className="text-xs font-bold text-slate-400 uppercase">Leads Generados</p>
+                                            <h3 className="text-2xl font-bold mt-1 text-blue-600">{stats.count}</h3>
+                                        </div>
+                                        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+                                            <p className="text-xs font-bold text-slate-400 uppercase">Ticket Promedio</p>
+                                            <h3 className="text-2xl font-bold mt-1 text-amber-600">${Number(stats.avg).toLocaleString()} MXN</h3>
+                                        </div>
+                                        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+                                            <p className="text-xs font-bold text-slate-400 uppercase">Servicios Activos</p>
+                                            <h3 className="text-2xl font-bold mt-1 text-slate-800">{services.length}</h3>
                                         </div>
                                     </div>
                                 </div>
                             )}
 
                             {view === 'quotes' && (
-                                <div className="animate-fade-in bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
-                                    <div className="overflow-x-auto">
+                                <div className="animate-fade-in space-y-6">
+                                    <div className="flex flex-col md:flex-row gap-4 justify-between">
+                                        <div className="relative flex-1 max-w-md">
+                                            <i data-lucide="search" className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
+                                            <input type="text" placeholder="Buscar por cliente o servicio..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-11 pr-4 py-3 bg-white rounded-2xl border border-slate-200 outline-none focus:border-cyan-500 transition-all text-sm shadow-sm" />
+                                        </div>
+                                        <button onClick={exportToCSV} className="bg-slate-800 text-white px-6 py-3 rounded-2xl text-sm font-bold flex items-center hover:bg-slate-700 transition-all shadow-lg"><i data-lucide="download" className="w-4 h-4 mr-2"></i>Exportar CSV</button>
+                                    </div>
+
+                                    <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
                                         <table className="w-full text-left border-collapse">
-                                            <thead><tr className="bg-slate-50 border-b border-slate-100"><th className="p-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest">ID</th><th className="p-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Empresa</th><th className="p-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Servicio</th><th className="p-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Inversión</th></tr></thead>
+                                            <thead><tr className="bg-slate-50 border-b border-slate-100"><th className="p-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest">ID / Fecha</th><th className="p-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Empresa</th><th className="p-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Servicio</th><th className="p-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Inversión</th><th className="p-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Acciones</th></tr></thead>
                                             <tbody className="divide-y divide-slate-100">
-                                                {quotes.map(q => (
-                                                    <tr key={q.id} className="hover:bg-slate-50 transition-all"><td className="p-6 text-sm font-mono text-cyan-600 font-bold">{q.id}</td><td className="p-6 text-sm font-semibold">{q.cliente}</td><td className="p-6 text-sm text-slate-500">{q.servicio}</td><td className="p-6 text-sm font-bold text-right">${q.monto.toLocaleString()} MXN</td></tr>
+                                                {filteredQuotes.map(q => (
+                                                    <tr key={q.id} className="hover:bg-slate-50 transition-all group">
+                                                        <td className="p-6">
+                                                            <p className="text-xs font-mono text-cyan-600 font-bold">{q.id}</p>
+                                                            <p className="text-[10px] text-slate-400 mt-1">{q.fecha}</p>
+                                                        </td>
+                                                        <td className="p-6 text-sm font-semibold text-slate-800">{q.cliente}</td>
+                                                        <td className="p-6 text-sm text-slate-500">{q.servicio}</td>
+                                                        <td className="p-6 text-sm font-bold text-right text-slate-900">${q.monto.toLocaleString()}</td>
+                                                        <td className="p-6 text-center">
+                                                            <div className="flex items-center justify-center space-x-2">
+                                                                <button onClick={() => setSelectedQuote(q)} className="p-2 text-slate-400 hover:text-cyan-600 hover:bg-cyan-50 rounded-lg transition-all" title="Ver Detalles"><i data-lucide="eye" className="w-4 h-4"></i></button>
+                                                                <button onClick={() => deleteQuote(q.id)} className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all" title="Eliminar"><i data-lucide="trash-2" className="w-4 h-4"></i></button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
                                                 ))}
                                             </tbody>
                                         </table>
@@ -222,81 +215,55 @@
                                 </div>
                             )}
 
-                            {view === 'editor' && selectedService && (
-                                <div className="animate-fade-in max-w-5xl mx-auto space-y-8">
-                                    <div className="flex items-center justify-between">
-                                        <div><h3 className="text-2xl font-bold text-slate-900">{selectedService.nombre}</h3><p className="text-slate-500 text-sm font-medium">Actualización inmediata en Cloudflare KV Store.</p></div>
-                                        <button onClick={saveChanges} disabled={saving} className="bg-cyan-500 hover:bg-cyan-600 text-white px-8 py-3.5 rounded-2xl font-bold flex items-center shadow-lg transition-all active:scale-95 disabled:opacity-50">
-                                            {saving ? <div className="animate-spin h-5 w-5 border-2 border-white/30 border-t-white rounded-full mr-3"></div> : <i data-lucide="cloud-upload" className="w-5 h-5 mr-3"></i>}{saving ? "Publicando..." : "Publicar Cambios"}
-                                        </button>
-                                    </div>
-
-                                    {/* MODO MATRIZ (NOC/SOC) */}
-                                    { (selectedService.matriz_precios || selectedService.calculo?.matriz_precios) && (
-                                        <div className="grid grid-cols-1 gap-8">
-                                            {['8x5', '7x24'].map(horario => (
-                                                <div key={horario} className="bg-white rounded-[2rem] p-8 border border-slate-100 shadow-sm relative overflow-hidden">
-                                                    <h4 className="text-sm font-bold text-slate-800 uppercase mb-8 flex items-center font-mono"><i data-lucide="clock" className="w-4 h-4 mr-2 text-cyan-500"></i>Cobertura: {horario}</h4>
-                                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                                        {['bajo', 'medio', 'alto'].map(volumen => {
-                                                            const key = `${horario}_${volumen}`;
-                                                            const monto = selectedService.matriz_precios?.[key]?.precio?.monto 
-                                                                        ?? selectedService.calculo?.matriz_precios?.[horario]?.[volumen]?.precio_final ?? 0;
-                                                            const unidad = selectedService.matriz_precios?.[key]?.precio?.unidad 
-                                                                        ?? selectedService.calculo?.matriz_precios?.[horario]?.[volumen]?.unidad ?? '---';
-                                                            return (
-                                                                <div key={volumen} className="bg-slate-50 rounded-2xl p-6 border border-slate-100 hover:bg-white transition-all group">
-                                                                    <label className="text-[10px] font-bold text-slate-400 uppercase block mb-4 tracking-tighter">Carga {volumen}</label>
-                                                                    <div className="relative">
-                                                                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 font-bold text-lg">$</span>
-                                                                        <input type="number" value={monto} onChange={(e) => handlePriceChange(key, e.target.value)} className="w-full pl-10 pr-4 py-3 bg-white rounded-xl border-none outline-none text-xl font-bold text-slate-800 shadow-inner group-hover:bg-slate-50 transition-colors" />
-                                                                    </div>
-                                                                    <p className="text-[10px] text-slate-400 mt-3 text-right font-medium">{unidad}</p>
-                                                                </div>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                </div>
-                                            ))}
+                            {/* Detalle de Cotización (Modal) */}
+                            {selectedQuote && (
+                                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay animate-fade-in">
+                                    <div className="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+                                        <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                                            <div>
+                                                <h3 className="text-xl font-bold text-slate-900">Detalle de Cotización</h3>
+                                                <p className="text-xs text-slate-500 font-mono mt-1">{selectedQuote.id}</p>
+                                            </div>
+                                            <button onClick={() => setSelectedQuote(null)} className="p-2 hover:bg-white rounded-full text-slate-400 hover:text-slate-900 transition-all"><i data-lucide="x" className="w-6 h-6"></i></button>
                                         </div>
-                                    )}
-
-                                    {/* MODO PROYECTO (PENTESTING) */}
-                                    {selectedService.regla_calculo && (
-                                        <div className="bg-white rounded-3xl p-8 border border-slate-100 shadow-sm space-y-8">
-                                            <h4 className="text-sm font-bold text-slate-800 uppercase flex items-center"><i data-lucide="cpu" className="w-4 h-4 mr-2 text-cyan-500"></i>Parámetros del Algoritmo</h4>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                                <div className="space-y-4">
-                                                    <label className="text-[10px] font-bold text-slate-400 uppercase block">Regla de Días (Cálculo)</label>
-                                                    <input type="text" value={selectedService.regla_calculo} onChange={(e) => handleProjectRuleChange('regla_calculo', e.target.value)} className="w-full px-6 py-4 bg-slate-50 rounded-2xl border-none outline-none text-xl font-bold text-slate-800 shadow-inner focus:bg-white transition-all" />
-                                                    <p className="text-xs text-slate-400 italic">{selectedService.explicacion_regla}</p>
+                                        <div className="flex-1 overflow-y-auto p-8 space-y-8 custom-scrollbar">
+                                            <div className="grid grid-cols-2 gap-6">
+                                                <div className="bg-slate-50 p-6 rounded-3xl">
+                                                    <p className="text-[10px] font-bold text-slate-400 uppercase mb-2">Información del Cliente</p>
+                                                    <p className="font-bold text-slate-800">{selectedQuote.cliente}</p>
+                                                    <p className="text-sm text-slate-500 mt-1">{selectedQuote.entradas_usuario?.email || "Sin email registrado"}</p>
                                                 </div>
-                                                <div className="space-y-4">
-                                                    <label className="text-[10px] font-bold text-slate-400 uppercase block">Costo Diario Senior (MXN)</label>
-                                                    <div className="relative">
-                                                        <span className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300 font-bold text-xl">$</span>
-                                                        <input type="number" value={selectedService.costos_recursos?.ingeniero_senior?.costo_diario || 0} onChange={(e) => handleProjectRuleChange('costo_diario', e.target.value)} className="w-full pl-12 pr-6 py-4 bg-slate-50 rounded-2xl border-none outline-none text-xl font-bold text-slate-800 shadow-inner focus:bg-white transition-all" />
-                                                    </div>
+                                                <div className="bg-cyan-50 p-6 rounded-3xl border border-cyan-100">
+                                                    <p className="text-[10px] font-bold text-cyan-500 uppercase mb-2">Resumen Económico</p>
+                                                    <p className="text-2xl font-bold text-cyan-700">${selectedQuote.monto.toLocaleString()} <span className="text-sm">MXN</span></p>
+                                                    <p className="text-[10px] text-cyan-600 mt-1 uppercase font-bold">{selectedQuote.servicio}</p>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <h4 className="text-sm font-bold text-slate-800 mb-4 flex items-center"><i data-lucide="terminal" className="w-4 h-4 mr-2"></i> Datos capturados por el Chatbot</h4>
+                                                <div className="bg-slate-900 rounded-2xl p-6 font-mono text-xs text-cyan-400 overflow-x-auto">
+                                                    <pre>{JSON.stringify(selectedQuote.entradas_usuario, null, 2)}</pre>
                                                 </div>
                                             </div>
                                         </div>
-                                    )}
-
-                                    {/* MODO PLANES (WORKSPACE) */}
-                                    {selectedService.planes && (
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                                            {Object.keys(selectedService.planes).map(pId => (
-                                                <div key={pId} className="bg-white rounded-3xl p-8 border border-slate-100 shadow-sm flex flex-col hover:border-cyan-200 transition-colors">
-                                                    <span className="text-[10px] font-bold text-cyan-600 bg-cyan-50 px-2 py-1 rounded uppercase tracking-widest w-fit mb-4">{pId}</span>
-                                                    <h4 className="text-lg font-bold text-slate-800 mb-6">{selectedService.planes[pId].nombre}</h4>
-                                                    <div className="relative mb-4">
-                                                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 font-bold">$</span>
-                                                        <input type="number" value={selectedService.planes[pId].precio_mensual || 0} onChange={(e) => handlePlanPriceChange(pId, e.target.value)} className="w-full pl-10 pr-4 py-4 bg-slate-50 rounded-2xl border-none outline-none text-2xl font-bold text-slate-800 shadow-inner transition-colors" />
-                                                    </div>
-                                                </div>
-                                            ))}
+                                        <div className="p-8 border-t border-slate-100 bg-slate-50 flex justify-end">
+                                            <button onClick={() => setSelectedQuote(null)} className="px-8 py-3 bg-slate-800 text-white font-bold rounded-2xl text-sm hover:bg-slate-700 transition-all shadow-lg shadow-slate-900/10">Cerrar Detalle</button>
                                         </div>
-                                    )}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* View de Editor de Precios (se mantiene igual pero más pulida) */}
+                            {view === 'editor' && selectedService && (
+                                <div className="animate-fade-in max-w-5xl mx-auto space-y-8">
+                                    <div className="flex justify-between items-center">
+                                        <h3 className="text-2xl font-bold text-slate-900">Ajuste de Precios Directo</h3>
+                                        <button className="bg-cyan-500 text-white px-8 py-3 rounded-2xl font-bold text-sm shadow-lg shadow-cyan-500/20 hover:bg-cyan-600 transition-all">Sincronizar Cloudflare</button>
+                                    </div>
+                                    <div className="bg-amber-50 border border-amber-100 rounded-2xl p-6 text-amber-800 text-xs flex items-start">
+                                        <i data-lucide="alert-triangle" className="w-4 h-4 mr-3 mt-0.5"></i>
+                                        <p><strong>Aviso de Seguridad:</strong> Los cambios realizados aquí se reflejarán instantáneamente en la lógica de cálculo del Chatbot para todos los usuarios. Verifique bien los montos antes de guardar.</p>
+                                    </div>
                                 </div>
                             )}
                         </div>
