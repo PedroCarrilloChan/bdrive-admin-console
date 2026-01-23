@@ -11,56 +11,15 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
-        
-        :root {
-            --bdrive-dark: #020617;
-            --bdrive-navy: #0f172a;
-            --bdrive-cyan: #06b6d4;
-            --bdrive-blue: #3b82f6;
-        }
-
-        body { 
-            font-family: 'Plus Jakarta Sans', sans-serif; 
-            background-color: #f1f5f9; 
-            color: #1e293b;
-        }
-
-        .glass-panel {
-            background: rgba(255, 255, 255, 0.8);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-        }
-
-        .sidebar-item-active {
-            background: linear-gradient(90deg, rgba(6, 182, 212, 0.1) 0%, rgba(6, 182, 212, 0) 100%);
-            border-left: 3px solid var(--bdrive-cyan);
-            color: var(--bdrive-cyan);
-        }
-
+        :root { --bdrive-dark: #020617; --bdrive-navy: #0f172a; --bdrive-cyan: #06b6d4; --bdrive-blue: #3b82f6; }
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f1f5f9; color: #1e293b; }
+        .glass-panel { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.3); }
+        .sidebar-item-active { background: linear-gradient(90deg, rgba(6, 182, 212, 0.1) 0%, rgba(6, 182, 212, 0) 100%); border-left: 4px solid var(--bdrive-cyan); color: var(--bdrive-cyan); font-weight: 700; }
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-
-        .price-card:focus-within {
-            ring: 2px;
-            ring-color: var(--bdrive-cyan);
-            border-color: var(--bdrive-cyan);
-        }
-        
-        .animate-fade-in {
-            animation: fadeIn 0.3s ease-out;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        input::-webkit-outer-spin-button,
-        input::-webkit-inner-spin-button {
-            -webkit-appearance: none;
-            margin: 0;
-        }
+        .animate-fade-in { animation: fadeIn 0.3s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
     </style>
 </head>
 <body>
@@ -69,7 +28,7 @@
     <script type="text/babel">
         const { useState, useEffect, useMemo } = React;
 
-        // URL ACTUALIZADA AL WORKER ADMINISTRATIVO
+        // URL del Worker Administrativo
         const API_BASE_URL = "https://bdrive-admin-api.smartpasses.workers.dev"; 
 
         const App = () => {
@@ -81,15 +40,11 @@
             const [saving, setSaving] = useState(false);
             const [message, setMessage] = useState(null);
 
-            useEffect(() => {
-                fetchInitialData();
-            }, []);
+            useEffect(() => { fetchInitialData(); }, []);
 
             useEffect(() => {
                 if (!loading && window.lucide) {
-                    const timer = setTimeout(() => {
-                        window.lucide.createIcons();
-                    }, 150);
+                    const timer = setTimeout(() => { window.lucide.createIcons(); }, 150);
                     return () => clearTimeout(timer);
                 }
             }, [view, services, selectedService, loading, message, quotes]);
@@ -97,63 +52,51 @@
             const fetchInitialData = async () => {
                 setLoading(true);
                 try {
-                    // Cargar Cotizaciones (D1)
                     const qRes = await fetch(`${API_BASE_URL}/api/quotes`);
-                    if (qRes.ok) {
-                        const qData = await qRes.json();
-                        setQuotes(qData);
-                    }
+                    if (qRes.ok) setQuotes(await qRes.json());
 
-                    // Cargar Servicios (KV)
                     const sRes = await fetch(`${API_BASE_URL}/api/services`);
                     if (sRes.ok) {
                         const sData = await sRes.json();
-                        console.log("Servicios detectados:", sData);
                         setServices(sData);
-                    } else {
-                        console.error("Error al obtener servicios:", await sRes.text());
-                        setMessage({ text: "No se pudieron obtener los servicios del KV.", type: "error" });
                     }
                 } catch (err) {
-                    console.error("Error de conexión:", err);
-                    setMessage({ text: "Error de conexión: Revisa el estado del Worker Admin API.", type: "error" });
+                    console.error(err);
+                    setMessage({ text: "Error de conexión con el Worker", type: "error" });
                 } finally {
                     setLoading(false);
                 }
             };
 
-            // Manejador para precios en Matriz (NOC/SOC)
             const handlePriceChange = (matrixKey, value) => {
-                const updated = { ...selectedService };
-                if (updated.matriz_precios?.[matrixKey]) {
-                    updated.matriz_precios[matrixKey].precio.monto = parseFloat(value) || 0;
-                    setSelectedService(updated);
+                const updated = JSON.parse(JSON.stringify(selectedService));
+                const val = parseFloat(value) || 0;
+                if (updated.matriz_precios?.[matrixKey]?.precio) {
+                    updated.matriz_precios[matrixKey].precio.monto = val;
                 } else if (updated.calculo?.matriz_precios) {
-                    // Soporte para estructura antigua si existiera
                     const [horario, volumen] = matrixKey.split('_');
-                    if(updated.calculo.matriz_precios[horario]?.[volumen]) {
-                        updated.calculo.matriz_precios[horario][volumen].precio_final = parseFloat(value) || 0;
-                        setSelectedService(updated);
+                    if (updated.calculo.matriz_precios[horario]?.[volumen]) {
+                        updated.calculo.matriz_precios[horario][volumen].precio_final = val;
                     }
                 }
+                setSelectedService(updated);
             };
 
-            // Manejador para precios en Planes (Google Workspace)
             const handlePlanPriceChange = (planId, value) => {
-                const updated = { ...selectedService };
+                const updated = JSON.parse(JSON.stringify(selectedService));
                 if (updated.planes?.[planId]) {
                     updated.planes[planId].precio_mensual = parseFloat(value) || 0;
                     setSelectedService(updated);
                 }
             };
 
-            // Manejador para Pentesting
             const handleProjectRuleChange = (field, value) => {
-                const updated = { ...selectedService };
+                const updated = JSON.parse(JSON.stringify(selectedService));
                 if (field === 'regla_calculo') updated.regla_calculo = value;
                 if (field === 'costo_diario') {
-                    if (!updated.costos_recursos) updated.costos_recursos = { ingeniero_senior: {} };
-                    updated.costos_recursos.ingeniero_senior.costo_diario = parseFloat(value) || 0;
+                    if (updated.costos_recursos?.ingeniero_senior) {
+                        updated.costos_recursos.ingeniero_senior.costo_diario = parseFloat(value) || 0;
+                    }
                 }
                 setSelectedService(updated);
             };
@@ -166,15 +109,12 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(selectedService) 
                     });
-
                     if (res.ok) {
                         setMessage({ text: `Sincronización exitosa: ${selectedService.nombre}`, type: "success" });
                         setServices(services.map(s => s.servicio_id === selectedService.servicio_id ? selectedService : s));
-                    } else {
-                        throw new Error("Error en servidor");
                     }
                 } catch (err) {
-                    setMessage({ text: "Error al guardar en Cloudflare KV Store", type: "error" });
+                    setMessage({ text: "Error al guardar en el KV", type: "error" });
                 } finally {
                     setSaving(false);
                     setTimeout(() => setMessage(null), 4000);
@@ -198,102 +138,70 @@
             if (loading) return (
                 <div className="h-screen w-full flex flex-col items-center justify-center bg-slate-900 text-white">
                     <div className="w-12 h-12 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-                    <p className="font-bold tracking-widest text-xs uppercase opacity-50">Conectando con la Consola B-drive...</p>
+                    <p className="font-bold tracking-widest text-xs uppercase opacity-50">Iniciando B-drive Management...</p>
                 </div>
             );
 
             return (
                 <div className="flex h-screen overflow-hidden">
-                    {/* Navegación Lateral */}
                     <aside className="w-72 bg-slate-900 text-slate-300 flex flex-col border-r border-slate-800">
                         <div className="p-6 flex items-center space-x-3">
-                            <div className="bg-cyan-500 p-2 rounded-xl">
-                                <i data-lucide="zap" className="w-6 h-6 text-white"></i>
-                            </div>
-                            <div>
-                                <h1 className="text-xl font-bold text-white tracking-tight">B-drive</h1>
-                                <span className="text-[10px] text-cyan-400 font-bold uppercase tracking-widest">Admin Console</span>
-                            </div>
+                            <div className="bg-cyan-500 p-2 rounded-xl shadow-lg shadow-cyan-500/20"><i data-lucide="zap" className="w-6 h-6 text-white"></i></div>
+                            <div><h1 className="text-xl font-bold text-white tracking-tight leading-none">B-drive</h1><span className="text-[10px] text-cyan-400 font-bold uppercase tracking-widest">Admin Console</span></div>
                         </div>
-
                         <nav className="mt-6 flex-1 px-3 space-y-1 custom-scrollbar overflow-y-auto">
                             <button onClick={() => setView('dashboard')} className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all ${view === 'dashboard' ? 'sidebar-item-active text-white bg-slate-800/50' : 'hover:bg-slate-800/30'}`}>
-                                <i data-lucide="layout-dashboard" className="w-5 h-5"></i>
-                                <span className="font-medium text-sm">Resumen Ejecutivo</span>
+                                <i data-lucide="layout-dashboard" className="w-5 h-5"></i><span className="font-medium text-sm">Dashboard Global</span>
                             </button>
-
                             <button onClick={() => setView('quotes')} className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all ${view === 'quotes' ? 'sidebar-item-active text-white bg-slate-800/50' : 'hover:bg-slate-800/30'}`}>
-                                <i data-lucide="file-text" className="w-5 h-5"></i>
-                                <span className="font-medium text-sm">Historial de Leads</span>
+                                <i data-lucide="file-text" className="w-5 h-5"></i><span className="font-medium text-sm">Historial de Leads</span>
                             </button>
-
-                            <div className="pt-6 pb-2 px-4 font-bold text-[10px] text-slate-500 uppercase tracking-widest">Configurar Precios</div>
-
-                            {services.length > 0 ? services.map(s => (
+                            <div className="pt-6 pb-2 px-4 font-bold text-[10px] text-slate-500 uppercase tracking-widest">Servicios KV</div>
+                            {services.map(s => (
                                 <button key={s.servicio_id} onClick={() => { setSelectedService(s); setView('editor'); }} className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all group ${selectedService?.servicio_id === s.servicio_id && view === 'editor' ? 'sidebar-item-active text-white bg-slate-800/50' : 'hover:bg-slate-800/30'}`}>
                                     <div className="flex items-center space-x-3">
-                                        <i data-lucide={s.icono || (s.categoria === 'seguridad' ? 'shield' : 'package')} className="w-4 h-4"></i>
+                                        <i data-lucide={s.categoria === 'infraestructura' ? 'activity' : s.categoria === 'seguridad' ? 'shield' : 'package'} className="w-4 h-4"></i>
                                         <span className="text-sm font-medium">{s.nombre_corto || s.nombre}</span>
                                     </div>
                                 </button>
-                            )) : (
-                                <div className="px-4 py-2 text-xs text-slate-600 italic">No hay servicios en KV</div>
-                            )}
+                            ))}
                         </nav>
-                        
-                        <div className="p-6 border-t border-slate-800 flex items-center space-x-3 text-xs opacity-50">
-                            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                            <span>Infraestructura Online</span>
-                        </div>
+                        <div className="p-6 border-t border-slate-800 flex items-center space-x-3 text-xs opacity-50"><div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div><span>Worker API Sync Activo</span></div>
                     </aside>
 
-                    {/* Contenido Principal */}
                     <main className="flex-1 flex flex-col min-w-0 overflow-hidden bg-slate-50">
                         <header className="h-20 glass-panel border-b border-slate-200 px-8 flex items-center justify-between z-10">
-                            <h2 className="text-lg font-bold text-slate-800 capitalize">
-                                {view === 'quotes' ? 'Auditoría de Cotizaciones' : view === 'dashboard' ? 'Dashboard Global' : `Edición: ${selectedService?.nombre}`}
-                            </h2>
-                            <div className="h-10 w-10 rounded-xl bg-slate-800 text-white flex items-center justify-center">
-                                <i data-lucide="user" className="w-5 h-5"></i>
-                            </div>
+                            <h2 className="text-lg font-bold text-slate-800 capitalize">{view === 'quotes' ? 'Lead Management' : view === 'dashboard' ? 'Performance' : selectedService?.nombre}</h2>
+                            <div className="h-10 w-10 rounded-xl bg-slate-800 text-white flex items-center justify-center"><i data-lucide="user" className="w-5 h-5"></i></div>
                         </header>
 
                         <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
                             {message && (
                                 <div className={`animate-fade-in mb-8 p-4 rounded-xl flex items-center shadow-lg ${message.type === 'success' ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'}`}>
-                                    <i data-lucide={message.type === 'success' ? 'check-circle' : 'alert-circle'} className="w-5 h-5 mr-3"></i>
-                                    <span className="font-semibold">{message.text}</span>
+                                    <i data-lucide={message.type === 'success' ? 'check-circle' : 'alert-circle'} className="w-5 h-5 mr-3"></i><span className="font-semibold">{message.text}</span>
                                 </div>
                             )}
 
                             {view === 'dashboard' && (
                                 <div className="animate-fade-in space-y-8">
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                                        <StatCard title="Servicios Activos" value={services.length} icon="database" color="cyan" />
-                                        <StatCard title="Leads Totales" value={quotes.length} icon="file-text" color="blue" />
-                                        <StatCard title="Uptime Worker" value="100%" icon="activity" color="emerald" />
-                                        <StatCard title="Estado KV" value="Sincronizado" icon="cloud" color="indigo" />
+                                        <StatCard title="Servicios KV" value={services.length} icon="database" color="cyan" />
+                                        <StatCard title="Total Leads" value={quotes.length} icon="users" color="blue" />
+                                        <StatCard title="Health" value="100%" icon="activity" color="emerald" />
+                                        <StatCard title="Uptime" value="Online" icon="cloud" color="indigo" />
                                     </div>
-
                                     <div className="bg-white rounded-3xl p-8 border border-slate-100 shadow-sm">
-                                        <h3 className="text-lg font-bold mb-6">Cotizaciones Recientes</h3>
+                                        <h3 className="text-lg font-bold mb-6">Actividad Reciente</h3>
                                         <div className="space-y-4">
                                             {quotes.length > 0 ? quotes.slice(0, 5).map(q => (
-                                                <div key={q.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100 hover:border-cyan-200 transition-all">
+                                                <div key={q.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100 transition-all hover:border-cyan-200">
                                                     <div className="flex items-center space-x-4">
-                                                        <div className="p-3 bg-white rounded-xl text-slate-400">
-                                                            <i data-lucide="file-text" className="w-5 h-5"></i>
-                                                        </div>
-                                                        <div>
-                                                            <p className="font-bold text-slate-800">{q.cliente}</p>
-                                                            <p className="text-xs text-slate-400">{q.servicio} • {q.fecha}</p>
-                                                        </div>
+                                                        <div className="p-3 bg-white rounded-xl text-slate-400"><i data-lucide="file-text" className="w-5 h-5"></i></div>
+                                                        <div><p className="font-bold text-slate-800">{q.cliente}</p><p className="text-xs text-slate-400">{q.servicio} • {q.fecha}</p></div>
                                                     </div>
                                                     <p className="font-bold text-cyan-600">${q.monto.toLocaleString()} MXN</p>
                                                 </div>
-                                            )) : (
-                                                <div className="text-center py-10 text-slate-400 text-sm italic">Sin actividad registrada aún.</div>
-                                            )}
+                                            )) : <div className="py-10 text-center text-slate-400 text-sm">Sin datos registrados aún.</div>}
                                         </div>
                                     </div>
                                 </div>
@@ -303,22 +211,10 @@
                                 <div className="animate-fade-in bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
                                     <div className="overflow-x-auto">
                                         <table className="w-full text-left border-collapse">
-                                            <thead>
-                                                <tr className="bg-slate-50 border-b border-slate-100">
-                                                    <th className="p-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest">ID</th>
-                                                    <th className="p-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Cliente</th>
-                                                    <th className="p-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Servicio</th>
-                                                    <th className="p-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Inversión</th>
-                                                </tr>
-                                            </thead>
+                                            <thead><tr className="bg-slate-50 border-b border-slate-100"><th className="p-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest">ID</th><th className="p-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Empresa</th><th className="p-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Servicio</th><th className="p-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Inversión</th></tr></thead>
                                             <tbody className="divide-y divide-slate-100">
                                                 {quotes.map(q => (
-                                                    <tr key={q.id} className="hover:bg-slate-50/50 transition-all">
-                                                        <td className="p-6 text-sm font-mono text-cyan-600 font-bold">{q.id}</td>
-                                                        <td className="p-6 text-sm font-semibold text-slate-800">{q.cliente}</td>
-                                                        <td className="p-6 text-sm text-slate-500">{q.servicio}</td>
-                                                        <td className="p-6 text-sm font-bold text-slate-900 text-right">${q.monto.toLocaleString()} MXN</td>
-                                                    </tr>
+                                                    <tr key={q.id} className="hover:bg-slate-50 transition-all"><td className="p-6 text-sm font-mono text-cyan-600 font-bold">{q.id}</td><td className="p-6 text-sm font-semibold">{q.cliente}</td><td className="p-6 text-sm text-slate-500">{q.servicio}</td><td className="p-6 text-sm font-bold text-right">${q.monto.toLocaleString()} MXN</td></tr>
                                                 ))}
                                             </tbody>
                                         </table>
@@ -327,51 +223,35 @@
                             )}
 
                             {view === 'editor' && selectedService && (
-                                <div className="animate-fade-in max-w-5xl mx-auto">
-                                    <div className="flex items-center justify-between mb-8">
-                                        <div>
-                                            <h3 className="text-2xl font-bold text-slate-900">{selectedService.nombre}</h3>
-                                            <p className="text-slate-500 text-sm uppercase tracking-widest text-[10px] font-bold mt-1">
-                                                ID: {selectedService.servicio_id} | Tipo: {selectedService.regla_calculo ? 'Proyecto' : selectedService.matriz_precios ? 'Matriz' : 'Planes'}
-                                            </p>
-                                        </div>
-                                        <button 
-                                            onClick={saveChanges}
-                                            disabled={saving}
-                                            className="bg-cyan-500 hover:bg-cyan-600 text-white px-8 py-3.5 rounded-2xl font-bold flex items-center shadow-lg transition-all active:scale-95 disabled:opacity-50"
-                                        >
-                                            {saving ? <div className="animate-spin h-5 w-5 border-2 border-white/30 border-t-white rounded-full mr-3"></div> : <i data-lucide="cloud-upload" className="w-5 h-5 mr-3"></i>}
-                                            {saving ? "Publicando..." : "Sincronizar KV"}
+                                <div className="animate-fade-in max-w-5xl mx-auto space-y-8">
+                                    <div className="flex items-center justify-between">
+                                        <div><h3 className="text-2xl font-bold text-slate-900">{selectedService.nombre}</h3><p className="text-slate-500 text-sm font-medium">Actualización inmediata en Cloudflare KV Store.</p></div>
+                                        <button onClick={saveChanges} disabled={saving} className="bg-cyan-500 hover:bg-cyan-600 text-white px-8 py-3.5 rounded-2xl font-bold flex items-center shadow-lg transition-all active:scale-95 disabled:opacity-50">
+                                            {saving ? <div className="animate-spin h-5 w-5 border-2 border-white/30 border-t-white rounded-full mr-3"></div> : <i data-lucide="cloud-upload" className="w-5 h-5 mr-3"></i>}{saving ? "Publicando..." : "Publicar Cambios"}
                                         </button>
                                     </div>
 
-                                    {/* EDITOR MATRIZ (NOC / SOC) */}
-                                    {selectedService.matriz_precios && (
+                                    {/* MODO MATRIZ (NOC/SOC) */}
+                                    { (selectedService.matriz_precios || selectedService.calculo?.matriz_precios) && (
                                         <div className="grid grid-cols-1 gap-8">
                                             {['8x5', '7x24'].map(horario => (
                                                 <div key={horario} className="bg-white rounded-[2rem] p-8 border border-slate-100 shadow-sm relative overflow-hidden">
-                                                    <h4 className="text-sm font-bold text-slate-800 uppercase mb-8 flex items-center">
-                                                        <i data-lucide="clock" className="w-4 h-4 mr-2 text-cyan-500"></i>
-                                                        Esquema: {horario}
-                                                    </h4>
+                                                    <h4 className="text-sm font-bold text-slate-800 uppercase mb-8 flex items-center font-mono"><i data-lucide="clock" className="w-4 h-4 mr-2 text-cyan-500"></i>Cobertura: {horario}</h4>
                                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                                         {['bajo', 'medio', 'alto'].map(volumen => {
                                                             const key = `${horario}_${volumen}`;
-                                                            const item = selectedService.matriz_precios[key];
-                                                            if (!item) return null;
+                                                            const monto = selectedService.matriz_precios?.[key]?.precio?.monto 
+                                                                        ?? selectedService.calculo?.matriz_precios?.[horario]?.[volumen]?.precio_final ?? 0;
+                                                            const unidad = selectedService.matriz_precios?.[key]?.precio?.unidad 
+                                                                        ?? selectedService.calculo?.matriz_precios?.[horario]?.[volumen]?.unidad ?? '---';
                                                             return (
-                                                                <div key={volumen} className="bg-slate-50 rounded-2xl p-6 border border-slate-100 hover:bg-white transition-all">
-                                                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-4">Carga {volumen}</label>
+                                                                <div key={volumen} className="bg-slate-50 rounded-2xl p-6 border border-slate-100 hover:bg-white transition-all group">
+                                                                    <label className="text-[10px] font-bold text-slate-400 uppercase block mb-4 tracking-tighter">Carga {volumen}</label>
                                                                     <div className="relative">
-                                                                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 font-bold">$</span>
-                                                                        <input 
-                                                                            type="number" 
-                                                                            value={item.precio?.monto || 0}
-                                                                            onChange={(e) => handlePriceChange(key, e.target.value)}
-                                                                            className="w-full pl-10 pr-4 py-3 bg-white rounded-xl border-none outline-none text-xl font-bold text-slate-800 shadow-inner"
-                                                                        />
+                                                                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 font-bold text-lg">$</span>
+                                                                        <input type="number" value={monto} onChange={(e) => handlePriceChange(key, e.target.value)} className="w-full pl-10 pr-4 py-3 bg-white rounded-xl border-none outline-none text-xl font-bold text-slate-800 shadow-inner group-hover:bg-slate-50 transition-colors" />
                                                                     </div>
-                                                                    <p className="text-[10px] text-slate-400 mt-3 text-right uppercase tracking-tighter">{item.precio?.unidad}</p>
+                                                                    <p className="text-[10px] text-slate-400 mt-3 text-right font-medium">{unidad}</p>
                                                                 </div>
                                                             );
                                                         })}
@@ -381,79 +261,42 @@
                                         </div>
                                     )}
 
-                                    {/* EDITOR PROYECTO (PENTESTING) */}
+                                    {/* MODO PROYECTO (PENTESTING) */}
                                     {selectedService.regla_calculo && (
                                         <div className="bg-white rounded-3xl p-8 border border-slate-100 shadow-sm space-y-8">
-                                            <h4 className="text-sm font-bold text-slate-800 uppercase flex items-center">
-                                                <i data-lucide="cpu" className="w-4 h-4 mr-2 text-cyan-500"></i>
-                                                Configuración del Algoritmo
-                                            </h4>
+                                            <h4 className="text-sm font-bold text-slate-800 uppercase flex items-center"><i data-lucide="cpu" className="w-4 h-4 mr-2 text-cyan-500"></i>Parámetros del Algoritmo</h4>
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                                 <div className="space-y-4">
-                                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Regla de Días (Base+Extra)</label>
-                                                    <input 
-                                                        type="text" 
-                                                        value={selectedService.regla_calculo}
-                                                        onChange={(e) => handleProjectRuleChange('regla_calculo', e.target.value)}
-                                                        className="w-full px-6 py-4 bg-slate-50 rounded-2xl border-none outline-none text-xl font-bold text-slate-800 shadow-inner focus:bg-white transition-all"
-                                                    />
+                                                    <label className="text-[10px] font-bold text-slate-400 uppercase block">Regla de Días (Cálculo)</label>
+                                                    <input type="text" value={selectedService.regla_calculo} onChange={(e) => handleProjectRuleChange('regla_calculo', e.target.value)} className="w-full px-6 py-4 bg-slate-50 rounded-2xl border-none outline-none text-xl font-bold text-slate-800 shadow-inner focus:bg-white transition-all" />
                                                     <p className="text-xs text-slate-400 italic">{selectedService.explicacion_regla}</p>
                                                 </div>
                                                 <div className="space-y-4">
-                                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Costo Diario Senior (MXN)</label>
+                                                    <label className="text-[10px] font-bold text-slate-400 uppercase block">Costo Diario Senior (MXN)</label>
                                                     <div className="relative">
                                                         <span className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300 font-bold text-xl">$</span>
-                                                        <input 
-                                                            type="number" 
-                                                            value={selectedService.costos_recursos?.ingeniero_senior?.costo_diario || 0}
-                                                            onChange={(e) => handleProjectRuleChange('costo_diario', e.target.value)}
-                                                            className="w-full pl-12 pr-6 py-4 bg-slate-50 rounded-2xl border-none outline-none text-xl font-bold text-slate-800 shadow-inner focus:bg-white transition-all"
-                                                        />
+                                                        <input type="number" value={selectedService.costos_recursos?.ingeniero_senior?.costo_diario || 0} onChange={(e) => handleProjectRuleChange('costo_diario', e.target.value)} className="w-full pl-12 pr-6 py-4 bg-slate-50 rounded-2xl border-none outline-none text-xl font-bold text-slate-800 shadow-inner focus:bg-white transition-all" />
                                                     </div>
                                                 </div>
                                             </div>
                                         </div>
                                     )}
 
-                                    {/* EDITOR PLANES (WORKSPACE) */}
+                                    {/* MODO PLANES (WORKSPACE) */}
                                     {selectedService.planes && (
-                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                                            {Object.keys(selectedService.planes).map(planId => {
-                                                const plan = selectedService.planes[planId];
-                                                return (
-                                                    <div key={planId} className="bg-white rounded-3xl p-8 border border-slate-100 shadow-sm flex flex-col">
-                                                        <div className="mb-6">
-                                                            <span className="text-[10px] font-bold text-cyan-600 bg-cyan-50 px-2 py-1 rounded uppercase tracking-widest">Plan {planId}</span>
-                                                            <h4 className="text-xl font-bold text-slate-800 mt-2">{plan?.nombre || 'Sin nombre'}</h4>
-                                                        </div>
-                                                        <div className="space-y-6 flex-1">
-                                                            <div>
-                                                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Inversión Mensual</label>
-                                                                <div className="relative">
-                                                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 font-bold text-xl">$</span>
-                                                                    <input 
-                                                                        type="number" 
-                                                                        value={plan?.precio_mensual || 0}
-                                                                        onChange={(e) => handlePlanPriceChange(planId, e.target.value)}
-                                                                        className="w-full pl-10 pr-4 py-4 bg-slate-50 rounded-2xl border-none outline-none text-2xl font-bold text-slate-800 shadow-inner focus:bg-white transition-all"
-                                                                    />
-                                                                </div>
-                                                            </div>
-                                                        </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                                            {Object.keys(selectedService.planes).map(pId => (
+                                                <div key={pId} className="bg-white rounded-3xl p-8 border border-slate-100 shadow-sm flex flex-col hover:border-cyan-200 transition-colors">
+                                                    <span className="text-[10px] font-bold text-cyan-600 bg-cyan-50 px-2 py-1 rounded uppercase tracking-widest w-fit mb-4">{pId}</span>
+                                                    <h4 className="text-lg font-bold text-slate-800 mb-6">{selectedService.planes[pId].nombre}</h4>
+                                                    <div className="relative mb-4">
+                                                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 font-bold">$</span>
+                                                        <input type="number" value={selectedService.planes[pId].precio_mensual || 0} onChange={(e) => handlePlanPriceChange(pId, e.target.value)} className="w-full pl-10 pr-4 py-4 bg-slate-50 rounded-2xl border-none outline-none text-2xl font-bold text-slate-800 shadow-inner transition-colors" />
                                                     </div>
-                                                );
-                                            })}
+                                                </div>
+                                            ))}
                                         </div>
                                     )}
-
-                                    <div className="mt-8 bg-blue-50 border border-blue-100 rounded-2xl p-6 flex items-start space-x-4">
-                                        <div className="p-2 bg-blue-100 rounded-xl text-blue-600">
-                                            <i data-lucide="info" className="w-5 h-5"></i>
-                                        </div>
-                                        <p className="text-sm text-blue-800">
-                                            <strong>Dashboard B-drive:</strong> Cualquier cambio realizado impactará globalmente en todos los agentes en menos de 1 segundo.
-                                        </p>
-                                    </div>
                                 </div>
                             )}
                         </div>
