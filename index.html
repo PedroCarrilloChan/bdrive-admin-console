@@ -27,14 +27,12 @@
             overflow-x: hidden; 
         }
 
-        /* Efecto Glassmorphism Premium */
         .glass-panel { 
             background: rgba(255, 255, 255, 0.95); 
             backdrop-filter: blur(12px); 
             border-bottom: 1px solid rgba(226, 232, 240, 0.8); 
         }
 
-        /* Navegación Activa */
         .sidebar-item-active { 
             background: linear-gradient(90deg, rgba(6, 182, 212, 0.12) 0%, rgba(6, 182, 212, 0) 100%); 
             border-left: 4px solid var(--bdrive-cyan); 
@@ -42,11 +40,9 @@
             font-weight: 700; 
         }
 
-        /* Scrollbars Estilizados */
         .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
 
-        /* Animaciones */
         .animate-fade-in { animation: fadeIn 0.4s ease-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
@@ -62,7 +58,6 @@
 
         .chart-container { position: relative; height: 260px; width: 100%; }
         .notes-textarea { resize: none; scrollbar-width: thin; transition: all 0.3s ease; }
-        .notes-textarea:focus { box-shadow: inset 0 2px 4px rgba(0,0,0,0.05); }
     </style>
 </head>
 <body>
@@ -71,7 +66,6 @@
     <script type="text/babel">
         const { useState, useEffect, useMemo, useRef } = React;
 
-        // CONFIGURACIÓN DE API
         const API_BASE_URL = "https://bdrive-admin-api.smartpasses.workers.dev"; 
 
         const App = () => {
@@ -102,7 +96,7 @@
                     }, 300);
                     return () => clearTimeout(timer);
                 }
-            }, [view, services, selectedService, loading, message, quotes, selectedQuote]);
+            }, [view, services, selectedService, loading, quotes]);
 
             const fetchInitialData = async () => {
                 setLoading(true);
@@ -114,7 +108,7 @@
                     if (qRes.ok) setQuotes(await qRes.json());
                     if (sRes.ok) setServices(await sRes.json());
                 } catch (err) {
-                    setMessage({ text: "Error de red: No se pudo contactar con el Worker", type: "error" });
+                    setMessage({ text: "Error de red: Worker inaccesible", type: "error" });
                 } finally {
                     setLoading(false);
                 }
@@ -123,7 +117,6 @@
             const renderCharts = () => {
                 const ctx1 = document.getElementById('leadsChart');
                 const ctx2 = document.getElementById('serviceChart');
-                
                 if (ctx1) {
                     if (chartRef1.current) chartRef1.current.destroy();
                     const dailyData = quotes.reduce((acc, q) => {
@@ -136,31 +129,30 @@
                         type: 'line',
                         data: {
                             labels,
-                            datasets: [{ label: 'Leads Capturados', data: labels.map(l => dailyData[l]), borderColor: '#06b6d4', backgroundColor: 'rgba(6, 182, 212, 0.1)', fill: true, tension: 0.4, borderWidth: 3, pointRadius: 4 }]
+                            datasets: [{ label: 'Leads', data: labels.map(l => dailyData[l]), borderColor: '#06b6d4', backgroundColor: 'rgba(6, 182, 212, 0.1)', fill: true, tension: 0.4 }]
                         },
-                        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+                        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
                     });
                 }
-
                 if (ctx2) {
                     if (chartRef2.current) chartRef2.current.destroy();
                     const serviceData = quotes.reduce((acc, q) => {
-                        const name = q.servicio || "Otros";
-                        acc[name] = (acc[name] || 0) + 1;
+                        acc[q.servicio || "Otros"] = (acc[q.servicio || "Otros"] || 0) + 1;
                         return acc;
                     }, {});
                     chartRef2.current = new Chart(ctx2, {
                         type: 'doughnut',
                         data: {
                             labels: Object.keys(serviceData),
-                            datasets: [{ data: Object.values(serviceData), backgroundColor: ['#06b6d4', '#3b82f6', '#8b5cf6', '#f43f5e', '#10b981', '#f59e0b'], borderWidth: 0 }]
+                            datasets: [{ data: Object.values(serviceData), backgroundColor: ['#06b6d4', '#3b82f6', '#8b5cf6', '#f43f5e', '#10b981'], borderWidth: 0 }]
                         },
-                        options: { responsive: true, maintainAspectRatio: false, cutout: '78%', plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 10, weight: 'bold' } } } } }
+                        options: { responsive: true, maintainAspectRatio: false, cutout: '75%' }
                     });
                 }
             };
 
             const handlePriceUpdate = (matrixKey, value) => {
+                if (!selectedService) return;
                 const updated = JSON.parse(JSON.stringify(selectedService));
                 const val = parseFloat(value) || 0;
                 if (updated.matriz_precios?.[matrixKey]?.precio) {
@@ -172,6 +164,7 @@
             };
 
             const handleProjectRuleUpdate = (field, value) => {
+                if (!selectedService) return;
                 const updated = JSON.parse(JSON.stringify(selectedService));
                 if (field === 'regla_calculo') updated.regla_calculo = value;
                 if (field === 'costo_diario' && updated.costos_recursos?.ingeniero_senior) {
@@ -180,30 +173,23 @@
                 setSelectedService(updated);
             };
 
-            const deleteLead = async (id) => {
-                if (!confirm("¿Deseas eliminar este registro permanentemente de la base de datos D1?")) return;
+            const handleRawJsonUpdate = (value) => {
                 try {
-                    const res = await fetch(`${API_BASE_URL}/api/quotes/${id}`, { method: 'DELETE' });
-                    if (res.ok) {
-                        setQuotes(quotes.filter(q => q.id !== id));
-                        setMessage({ text: "Registro eliminado con éxito", type: "success" });
-                    }
-                } catch (e) { setMessage({ text: "Error al intentar eliminar", type: "error" }); }
+                    const parsed = JSON.parse(value);
+                    setSelectedService(parsed);
+                } catch(e) { /* Error de sintaxis temporal mientras el usuario escribe */ }
             };
 
-            const saveQuoteNotes = async () => {
-                setSaving(true);
-                // Simulación de persistencia de notas (en producción requeriría un endpoint PUT /api/quotes/:id)
-                setTimeout(() => {
-                    setQuotes(quotes.map(q => q.id === selectedQuote.id ? selectedQuote : q));
-                    setSaving(false);
-                    setSelectedQuote(null);
-                    setMessage({ text: "Seguimiento comercial actualizado", type: "success" });
-                    setTimeout(() => setMessage(null), 3000);
-                }, 800);
+            const deleteLead = async (id) => {
+                if (!confirm("¿Eliminar este lead de la base de datos?")) return;
+                try {
+                    const res = await fetch(`${API_BASE_URL}/api/quotes/${id}`, { method: 'DELETE' });
+                    if (res.ok) setQuotes(quotes.filter(q => q.id !== id));
+                } catch (e) { setMessage({ text: "Error al borrar", type: "error" }); }
             };
 
             const saveChanges = async () => {
+                if (!selectedService) return;
                 setSaving(true);
                 try {
                     const res = await fetch(`${API_BASE_URL}/api/services/${selectedService.servicio_id}`, { 
@@ -211,47 +197,52 @@
                         body: JSON.stringify(selectedService) 
                     });
                     if (res.ok) {
-                        setMessage({ text: `Sincronización exitosa: ${selectedService.nombre}`, type: "success" });
+                        setMessage({ text: "Sincronización exitosa", type: "success" });
                         setServices(services.map(s => s.servicio_id === selectedService.servicio_id ? selectedService : s));
                     }
-                } catch (err) { setMessage({ text: "Error al sincronizar con Cloudflare", type: "error" }); }
+                } catch (err) { setMessage({ text: "Error de sincronización", type: "error" }); }
                 finally { setSaving(false); setTimeout(() => setMessage(null), 3000); }
             };
 
             const stats = useMemo(() => {
-                const total = quotes.reduce((acc, q) => acc + q.monto, 0);
+                const total = quotes.reduce((acc, q) => acc + (q.monto || 0), 0);
                 return { total, count: quotes.length, avg: quotes.length > 0 ? (total / quotes.length).toFixed(0) : 0 };
             }, [quotes]);
 
             const filteredQuotes = useMemo(() => {
-                return quotes.filter(q => 
-                    q.cliente.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                    q.servicio.toLowerCase().includes(searchQuery.toLowerCase())
-                );
+                return quotes.filter(q => (q.cliente || "").toLowerCase().includes(searchQuery.toLowerCase()) || (q.servicio || "").toLowerCase().includes(searchQuery.toLowerCase()));
             }, [quotes, searchQuery]);
 
             const currentLeads = filteredQuotes.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
             const totalPages = Math.ceil(filteredQuotes.length / itemsPerPage);
 
             const getServiceIcon = (s) => {
-                const id = s.servicio_id.toLowerCase();
-                if (s.categoria === 'infraestructura') return 'activity';
-                if (s.categoria === 'seguridad' || id.includes('pentesting')) return 'shield';
+                const id = (s?.servicio_id || "").toLowerCase();
+                if (s?.categoria === 'infraestructura') return 'activity';
+                if (s?.categoria === 'seguridad' || id.includes('pentesting')) return 'shield';
                 if (id.includes('correo') || id.includes('google')) return 'mail';
                 if (id.includes('nube') || id.includes('gcp')) return 'cloud';
                 return 'package';
             };
 
+            const getMotorName = (s) => {
+                if (!s) return "Cargando...";
+                if (s.matriz_precios) return "Matriz de Escalamiento";
+                if (s.regla_calculo) return "Algoritmo de Proyecto";
+                if (s.planes) return "Suscripción por Planes";
+                return "Estructura Personalizada";
+            };
+
             if (loading) return (
-                <div className="h-screen w-full flex flex-col items-center justify-center bg-slate-900 text-white">
-                    <div className="w-12 h-12 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mb-6"></div>
-                    <p className="font-bold tracking-widest text-xs uppercase opacity-50 tracking-[0.3em] text-center px-8 leading-loose">Autenticando B-drive Management System...</p>
+                <div className="h-screen w-full flex flex-col items-center justify-center bg-slate-900 text-white font-bold">
+                    <div className="w-12 h-12 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                    <p className="opacity-50 uppercase tracking-widest text-[10px]">Autenticando B-drive Core...</p>
                 </div>
             );
 
             return (
                 <div className="flex h-screen overflow-hidden relative bg-[#f8fafc]">
-                    {/* Sidebar Desktop - Impecable */}
+                    {/* Sidebar Desktop */}
                     <aside className="hidden lg:flex w-72 bg-slate-900 text-slate-300 flex flex-col border-r border-slate-800 z-30">
                         <div className="p-8 flex items-center space-x-3">
                             <div className="bg-cyan-500 p-2.5 rounded-2xl shadow-lg shadow-cyan-500/20"><i data-lucide="zap" className="w-6 h-6 text-white"></i></div>
@@ -275,30 +266,25 @@
                                 </button>
                             ))}
                         </nav>
-                        <div className="p-8 border-t border-slate-800 flex items-center space-x-3 text-[10px] opacity-40 font-bold tracking-widest uppercase italic"><div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div><span>Sync Online</span></div>
+                        <div className="p-8 border-t border-slate-800 flex items-center space-x-3 text-[10px] opacity-40 font-bold uppercase italic"><div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div><span>Sync Online</span></div>
                     </aside>
 
-                    {/* Sidebar Mobile Overlay */}
-                    {isSidebarOpen && <div className="lg:hidden fixed inset-0 z-[60] bg-black/70 backdrop-blur-sm animate-fade-in" onClick={() => setIsSidebarOpen(false)}></div>}
-                    <aside className={`fixed inset-y-0 left-0 z-[70] w-72 bg-slate-900 text-slate-300 flex flex-col border-r border-slate-800 sidebar-mobile ${isSidebarOpen ? 'open' : ''} lg:hidden shadow-2xl`}>
+                    {/* Mobile Menu */}
+                    {isSidebarOpen && <div className="lg:hidden fixed inset-0 z-[60] bg-black/70 backdrop-blur-sm" onClick={() => setIsSidebarOpen(false)}></div>}
+                    <aside className={`fixed inset-y-0 left-0 z-[70] w-72 bg-slate-900 text-slate-300 flex flex-col border-r border-slate-800 sidebar-mobile ${isSidebarOpen ? 'open' : ''} lg:hidden`}>
                         <div className="p-8 flex items-center justify-between border-b border-slate-800">
-                            <div className="flex items-center space-x-3">
-                                <div className="bg-cyan-500 p-2 rounded-xl shadow-lg shadow-cyan-500/20"><i data-lucide="zap" className="w-6 h-6 text-white"></i></div>
-                                <h1 className="text-xl font-black text-white leading-none">B-drive</h1>
-                            </div>
-                            <button onClick={() => setIsSidebarOpen(false)} className="text-slate-400 p-2 hover:text-white transition-colors"><i data-lucide="x" className="w-6 h-6"></i></button>
+                            <h1 className="text-xl font-black text-white">B-drive</h1>
+                            <button onClick={() => setIsSidebarOpen(false)} className="text-slate-400 p-2"><i data-lucide="x" className="w-6 h-6"></i></button>
                         </div>
-                        <nav className="flex-1 px-4 space-y-1 pt-6 overflow-y-auto custom-scrollbar">
-                            <button onClick={() => { setView('dashboard'); setIsSidebarOpen(false); }} className={`w-full flex items-center space-x-4 px-5 py-4 rounded-2xl transition-all ${view === 'dashboard' ? 'sidebar-item-active bg-slate-800' : ''}`}><i data-lucide="layout-dashboard" className="w-5 h-5"></i><span className="font-bold">Dashboard</span></button>
-                            <button onClick={() => { setView('quotes'); setIsSidebarOpen(false); }} className={`w-full flex items-center space-x-4 px-5 py-4 rounded-2xl transition-all ${view === 'quotes' ? 'sidebar-item-active bg-slate-800' : ''}`}><i data-lucide="file-text" className="w-5 h-5"></i><span className="font-bold">Leads</span></button>
-                            <div className="pt-8 pb-3 px-5 text-[10px] font-black text-slate-500 uppercase tracking-widest">Servicios</div>
+                        <nav className="flex-1 px-4 space-y-1 pt-6 overflow-y-auto">
+                            <button onClick={() => { setView('dashboard'); setIsSidebarOpen(false); }} className={`w-full flex items-center space-x-4 px-5 py-4 rounded-2xl ${view === 'dashboard' ? 'sidebar-item-active bg-slate-800' : ''}`}><i data-lucide="layout-dashboard" className="w-5 h-5"></i><span>Dashboard</span></button>
+                            <button onClick={() => { setView('quotes'); setIsSidebarOpen(false); }} className={`w-full flex items-center space-x-4 px-5 py-4 rounded-2xl ${view === 'quotes' ? 'sidebar-item-active bg-slate-800' : ''}`}><i data-lucide="file-text" className="w-5 h-5"></i><span>Leads</span></button>
                             {services.map(s => (
-                                <button key={s.servicio_id} onClick={() => { setSelectedService(s); setView('editor'); setIsSidebarOpen(false); }} className={`w-full flex items-center space-x-4 px-5 py-4 rounded-2xl transition-all ${selectedService?.servicio_id === s.servicio_id && view === 'editor' ? 'sidebar-item-active bg-slate-800' : ''}`}><i data-lucide={getServiceIcon(s)} className="w-5 h-5 opacity-70"></i><span className="font-medium text-sm">{s.nombre_corto || s.nombre}</span></button>
+                                <button key={s.servicio_id} onClick={() => { setSelectedService(s); setView('editor'); setIsSidebarOpen(false); }} className={`w-full flex items-center space-x-4 px-5 py-4 rounded-2xl ${selectedService?.servicio_id === s.servicio_id && view === 'editor' ? 'sidebar-item-active bg-slate-800' : ''}`}><i data-lucide={getServiceIcon(s)} className="w-4 h-4"></i><span>{s.nombre_corto || s.nombre}</span></button>
                             ))}
                         </nav>
                     </aside>
 
-                    {/* Main Area */}
                     <main className="flex-1 flex flex-col min-w-0 bg-[#f8fafc] overflow-hidden">
                         <header className="h-20 glass-panel px-6 md:px-10 flex items-center justify-between z-10 sticky top-0">
                             <div className="flex items-center space-x-4">
@@ -308,14 +294,14 @@
                                 </h2>
                             </div>
                             <div className="flex items-center space-x-2 md:space-x-5">
-                                <button onClick={fetchInitialData} className="p-2.5 text-slate-400 hover:text-cyan-600 bg-white rounded-xl shadow-sm border border-slate-100 hover:border-cyan-200 transition-all active:rotate-180"><i data-lucide="refresh-cw" className="w-4 md:w-5 h-4 md:h-5"></i></button>
-                                <div className="h-10 w-10 rounded-2xl bg-slate-900 text-white flex items-center justify-center font-black shadow-xl shadow-slate-900/10 border-2 border-slate-800">B</div>
+                                <button onClick={fetchInitialData} className="p-2.5 text-slate-400 hover:text-cyan-600 bg-white rounded-xl shadow-sm border border-slate-100 hover:border-cyan-200 active:rotate-180 transition-all"><i data-lucide="refresh-cw" className="w-4 md:w-5 h-4 md:h-5"></i></button>
+                                <div className="h-10 w-10 rounded-2xl bg-slate-900 text-white flex items-center justify-center font-black shadow-xl border-2 border-slate-800">B</div>
                             </div>
                         </header>
 
                         <div className="flex-1 overflow-y-auto p-4 md:p-10 custom-scrollbar">
                             {message && (
-                                <div className={`animate-fade-in mb-8 p-4.5 rounded-2xl flex items-center shadow-2xl ${message.type === 'success' ? 'bg-emerald-500 text-white shadow-emerald-500/10' : 'bg-rose-500 text-white shadow-rose-500/10'}`}>
+                                <div className={`animate-fade-in mb-8 p-4.5 rounded-2xl flex items-center shadow-2xl ${message.type === 'success' ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'}`}>
                                     <i data-lucide={message.type === 'success' ? 'check-circle' : 'alert-circle'} className="w-5 h-5 mr-3 shrink-0"></i><span className="font-bold text-xs md:text-sm tracking-tight">{message.text}</span>
                                 </div>
                             )}
@@ -350,82 +336,64 @@
 
                             {view === 'quotes' && (
                                 <div className="animate-fade-in space-y-6">
-                                    <div className="flex flex-col sm:flex-row gap-5 justify-between items-center bg-white p-5 md:p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
-                                        <div className="relative flex-1 w-full max-w-lg">
-                                            <i data-lucide="search" className="absolute left-5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-slate-400"></i>
-                                            <input type="text" placeholder="Filtrar por empresa o ID..." value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }} className="w-full pl-12 pr-6 py-4 bg-slate-50 rounded-[1.5rem] border-none outline-none focus:ring-4 focus:ring-cyan-500/10 text-sm font-medium transition-all" />
+                                    <div className="bg-white p-6 md:p-8 rounded-[2.5rem] border border-slate-100 shadow-sm flex flex-col sm:flex-row gap-5">
+                                        <div className="relative flex-1">
+                                            <i data-lucide="search" className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                                            <input type="text" placeholder="Filtrar por empresa o ID..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-12 pr-6 py-4 bg-slate-50 rounded-[1.5rem] border-none outline-none focus:ring-4 focus:ring-cyan-500/10 text-sm font-medium" />
                                         </div>
-                                        <button className="w-full sm:w-auto bg-slate-900 text-white px-10 py-4 rounded-[1.5rem] text-xs font-black uppercase tracking-widest flex items-center justify-center hover:bg-slate-800 shadow-2xl shadow-slate-900/20 transition-all active:scale-95"><i data-lucide="download" className="w-4 h-4 mr-3"></i>Exportar CRM</button>
                                     </div>
 
                                     <div className="bg-white rounded-[2.5rem] border border-slate-100 overflow-hidden shadow-sm overflow-x-auto custom-scrollbar">
                                         <table className="w-full text-left min-w-[850px]">
-                                            <thead><tr className="bg-slate-50/70 border-b border-slate-100"><th className="p-7 text-[10px] font-black text-slate-400 uppercase tracking-widest">Prospecto / Timestamp</th><th className="p-7 text-[10px] font-black text-slate-400 uppercase tracking-widest">Solución Solicitada</th><th className="p-7 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Inversión</th><th className="p-7 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Gestión</th></tr></thead>
+                                            <thead><tr className="bg-slate-50/70 border-b border-slate-100"><th className="p-7 text-[10px] font-black text-slate-400 uppercase tracking-widest">Prospecto / ID</th><th className="p-7 text-[10px] font-black text-slate-400 uppercase tracking-widest">Solución</th><th className="p-7 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Inversión</th><th className="p-7 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Gestión</th></tr></thead>
                                             <tbody className="divide-y divide-slate-50">
                                                 {currentLeads.map(q => (
-                                                    <tr key={q.id} className="hover:bg-slate-50/40 transition-all group">
-                                                        <td className="p-7">
-                                                            <p className="text-sm font-extrabold text-slate-800 tracking-tight">{q.cliente}</p>
-                                                            <p className="text-[10px] text-slate-400 mt-1.5 font-mono uppercase tracking-tighter opacity-70">{new Date(q.fecha).toLocaleString()} • {q.id.substring(0,18)}</p>
-                                                        </td>
+                                                    <tr key={q.id} className="hover:bg-slate-50/40 transition-all">
+                                                        <td className="p-7"><p className="text-sm font-extrabold text-slate-800">{q.cliente}</p><p className="text-[10px] text-slate-400 mt-1 font-mono uppercase">{q.id.substring(0,18)}...</p></td>
                                                         <td className="p-7 text-sm font-semibold text-slate-500">{q.servicio}</td>
-                                                        <td className="p-7 text-sm font-black text-right text-slate-900 leading-none">${q.monto.toLocaleString()} <span className="text-[9px] opacity-40 ml-1">MXN</span></td>
-                                                        <td className="p-7 text-center">
-                                                            <div className="flex items-center justify-center space-x-3">
-                                                                <button onClick={() => setSelectedQuote(q)} className="p-2.5 text-slate-300 hover:text-cyan-600 hover:bg-white border border-transparent hover:border-cyan-100 rounded-xl transition-all shadow-sm"><i data-lucide="edit-3" className="w-4.5 h-4.5"></i></button>
-                                                                <button onClick={() => deleteLead(q.id)} className="p-2.5 text-slate-300 hover:text-rose-600 hover:bg-white border border-transparent hover:border-rose-100 rounded-xl transition-all shadow-sm"><i data-lucide="trash-2" className="w-4.5 h-4.5"></i></button>
-                                                            </div>
+                                                        <td className="p-7 text-sm font-black text-right">${(q.monto || 0).toLocaleString()} <span className="text-[9px] opacity-40 ml-1 uppercase">MXN</span></td>
+                                                        <td className="p-7 text-center space-x-2">
+                                                            <button onClick={() => setSelectedQuote(q)} className="p-2.5 text-slate-300 hover:text-cyan-600 hover:bg-white border border-transparent hover:border-cyan-100 rounded-xl transition-all shadow-sm"><i data-lucide="edit-3" className="w-4 h-4"></i></button>
+                                                            <button onClick={() => deleteLead(q.id)} className="p-2.5 text-slate-300 hover:text-rose-600 hover:bg-white border border-transparent hover:border-rose-100 rounded-xl transition-all shadow-sm"><i data-lucide="trash-2" className="w-4 h-4"></i></button>
                                                         </td>
                                                     </tr>
                                                 ))}
-                                                {currentLeads.length === 0 && <tr><td colSpan="4" className="p-24 text-center text-slate-400 font-bold italic opacity-40">No hay prospectos capturados en este rango</td></tr>}
                                             </tbody>
                                         </table>
-                                        
-                                        <div className="p-7 border-t border-slate-50 flex flex-col sm:row justify-between items-center bg-slate-50/30 gap-6">
-                                            <p className="text-[11px] text-slate-400 font-extrabold uppercase tracking-widest">Leads del {Math.min((currentPage-1)*itemsPerPage+1, filteredQuotes.length)} al {Math.min(currentPage*itemsPerPage, filteredQuotes.length)} de {filteredQuotes.length}</p>
+                                        <div className="p-7 border-t border-slate-50 flex justify-between items-center bg-slate-50/30">
+                                            <p className="text-[11px] text-slate-400 font-extrabold uppercase tracking-widest">Página {currentPage} de {totalPages || 1}</p>
                                             <div className="flex items-center space-x-2">
-                                                <button onClick={() => setCurrentPage(p => Math.max(1, p-1))} disabled={currentPage === 1} className="p-3 rounded-xl bg-white border border-slate-200 disabled:opacity-30 hover:shadow-md transition-all"><i data-lucide="chevron-left" className="w-4.5 h-4.5"></i></button>
-                                                <div className="flex space-x-1.5 px-3">
-                                                    {[...Array(totalPages)].map((_, i) => (
-                                                        <button key={i} onClick={() => setCurrentPage(i+1)} className={`w-9 h-9 rounded-xl text-[11px] font-black transition-all ${currentPage === i+1 ? 'bg-cyan-500 text-white shadow-xl shadow-cyan-500/20' : 'bg-white text-slate-400 border border-slate-200 hover:bg-slate-100'}`}>{i+1}</button>
-                                                    )).slice(0, 5)}
-                                                </div>
-                                                <button onClick={() => setCurrentPage(p => Math.min(totalPages, p+1))} disabled={currentPage === totalPages || totalPages === 0} className="p-3 rounded-xl bg-white border border-slate-200 disabled:opacity-30 hover:shadow-md transition-all"><i data-lucide="chevron-right" className="w-4.5 h-4.5"></i></button>
+                                                <button onClick={() => setCurrentPage(p => Math.max(1, p-1))} disabled={currentPage === 1} className="p-2.5 rounded-xl bg-white border border-slate-200 disabled:opacity-30"><i data-lucide="chevron-left" className="w-4 h-4"></i></button>
+                                                <button onClick={() => setCurrentPage(p => Math.min(totalPages, p+1))} disabled={currentPage === totalPages || totalPages === 0} className="p-2.5 rounded-xl bg-white border border-slate-200 disabled:opacity-30"><i data-lucide="chevron-right" className="w-4 h-4"></i></button>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
                             )}
 
-                            {/* Modal CRM - Impecable */}
                             {selectedQuote && (
                                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 md:p-6 modal-overlay animate-fade-in">
-                                    <div className="bg-white w-full max-w-3xl rounded-[2.5rem] md:rounded-[4rem] shadow-[0_40px_100px_-20px_rgba(0,0,0,0.4)] overflow-hidden flex flex-col max-h-[96vh] sm:max-h-[92vh]">
+                                    <div className="bg-white w-full max-w-3xl rounded-[2.5rem] md:rounded-[4rem] shadow-2xl overflow-hidden flex flex-col max-h-[95vh] sm:max-h-[92vh]">
                                         <div className="p-8 md:p-12 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-                                            <div className="min-w-0 flex-1">
-                                                <h3 className="text-xl md:text-2xl font-black text-slate-900 truncate tracking-tight">Expediente Prospecto</h3>
-                                                <p className="text-[10px] text-cyan-600 font-black mt-2 uppercase tracking-[0.25em] truncate opacity-80 underline decoration-cyan-500/30 decoration-2">Referencia: {selectedQuote.id}</p>
-                                            </div>
-                                            <button onClick={() => setSelectedQuote(null)} className="ml-6 p-3 hover:bg-white rounded-[1.5rem] text-slate-400 hover:text-slate-900 transition-all border border-transparent hover:border-slate-200 shadow-sm"><i data-lucide="x" className="w-6 h-6"></i></button>
+                                            <div className="min-w-0 flex-1"><h3 className="text-xl md:text-2xl font-black text-slate-900 truncate tracking-tight">Expediente de Lead</h3><p className="text-[10px] text-cyan-600 font-black mt-2 uppercase tracking-[0.25em] truncate">REF: {selectedQuote.id}</p></div>
+                                            <button onClick={() => setSelectedQuote(null)} className="ml-6 p-3 hover:bg-white rounded-[1.5rem] text-slate-400 hover:text-slate-900 transition-all border border-transparent hover:border-slate-200"><i data-lucide="x" className="w-6 h-6"></i></button>
                                         </div>
-                                        <div className="flex-1 overflow-y-auto p-8 md:p-12 space-y-10 custom-scrollbar">
+                                        <div className="flex-1 overflow-y-auto p-8 md:p-12 space-y-10 custom-scrollbar text-left">
                                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 md:gap-10">
                                                 <div className="bg-slate-50 p-8 rounded-[2.5rem] border border-slate-100">
                                                     <p className="text-[10px] font-black text-slate-400 uppercase mb-3 tracking-[0.15em]">Entidad Comercial</p>
-                                                    <input type="text" value={selectedQuote.cliente} onChange={(e) => setSelectedQuote({...selectedQuote, cliente: e.target.value})} className="bg-transparent border-none p-0 font-black text-slate-800 text-xl w-full focus:ring-0 placeholder-slate-300" placeholder="Nombre de empresa..." />
+                                                    <input type="text" value={selectedQuote.cliente || ""} onChange={(e) => setSelectedQuote({...selectedQuote, cliente: e.target.value})} className="bg-transparent border-none p-0 font-black text-slate-800 text-xl w-full focus:ring-0" placeholder="Nombre..." />
                                                 </div>
-                                                <div className="bg-cyan-50 p-8 rounded-[2.5rem] border border-cyan-100 relative overflow-hidden">
-                                                    <div className="absolute -top-4 -right-4 opacity-5"><i data-lucide="dollar-sign" className="w-24 h-24"></i></div>
-                                                    <p className="text-[10px] font-black text-cyan-500 uppercase mb-3 tracking-[0.15em] relative z-10">Valor del Lead</p>
-                                                    <p className="text-2xl md:text-3xl font-black text-cyan-700 relative z-10 tracking-tight">${selectedQuote.monto.toLocaleString()} <span className="text-xs font-bold tracking-normal opacity-60">MXN</span></p>
+                                                <div className="bg-cyan-50 p-8 rounded-[2.5rem] border border-cyan-100 shadow-inner">
+                                                    <p className="text-[10px] font-black text-cyan-500 uppercase mb-3 tracking-[0.15em]">Valor Estimado</p>
+                                                    <p className="text-2xl md:text-3xl font-black text-cyan-700 tracking-tight">${(selectedQuote.monto || 0).toLocaleString()} <span className="text-xs">MXN</span></p>
                                                 </div>
                                             </div>
                                             <div className="space-y-5">
-                                                <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center px-2"><i data-lucide="message-square" className="w-4 h-4 mr-3 text-cyan-500"></i> Notas Internas de Seguimiento</h4>
-                                                <textarea className="w-full h-40 md:h-52 p-8 bg-slate-50 rounded-[2.5rem] border-2 border-transparent outline-none focus:border-cyan-500/20 text-sm text-slate-600 font-medium notes-textarea shadow-inner leading-relaxed transition-all" placeholder="Registra llamadas, correos o acuerdos especiales con el cliente..." value={selectedQuote.anotaciones || ""} onChange={(e) => setSelectedQuote({...selectedQuote, anotaciones: e.target.value})}></textarea>
+                                                <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center px-2"><i data-lucide="message-square" className="w-4 h-4 mr-3 text-cyan-500"></i> Bitácora de Seguimiento</h4>
+                                                <textarea className="w-full h-40 md:h-52 p-8 bg-slate-50 rounded-[2.5rem] border-2 border-transparent outline-none focus:border-cyan-500/20 text-sm text-slate-600 font-medium notes-textarea shadow-inner transition-all leading-relaxed" placeholder="Registra llamadas, correos o acuerdos..." value={selectedQuote.anotaciones || ""} onChange={(e) => setSelectedQuote({...selectedQuote, anotaciones: e.target.value})}></textarea>
                                             </div>
-                                            <div className="opacity-80">
+                                            <div>
                                                 <h4 className="text-[10px] font-black text-slate-400 uppercase mb-5 tracking-widest flex items-center px-2"><i data-lucide="terminal" className="w-3.5 h-3.5 mr-3 text-indigo-500"></i> Datos Técnicos Capturados</h4>
                                                 <div className="bg-slate-900 rounded-[2.5rem] p-8 font-mono text-[10px] text-cyan-400/80 shadow-2xl overflow-x-auto leading-loose border-2 border-slate-800/50"><pre>{JSON.stringify(selectedQuote.entradas_usuario, null, 2)}</pre></div>
                                             </div>
@@ -434,17 +402,13 @@
                                             <button onClick={() => deleteLead(selectedQuote.id)} className="order-2 sm:order-1 px-6 py-4 text-rose-500 font-black text-[10px] uppercase tracking-widest hover:bg-rose-50 rounded-2xl transition-all flex items-center justify-center sm:justify-start"><i data-lucide="trash-2" className="w-4.5 h-4.5 mr-3"></i>Borrar Registro</button>
                                             <div className="order-1 sm:order-2 flex space-x-3 sm:space-x-4">
                                                 <button onClick={() => setSelectedQuote(null)} className="flex-1 sm:flex-none px-10 py-4 bg-white text-slate-400 font-black rounded-2xl text-[10px] uppercase tracking-widest border border-slate-200 shadow-sm hover:bg-slate-50 transition-all">Cancelar</button>
-                                                <button onClick={saveQuoteNotes} disabled={saving} className="flex-1 sm:flex-none px-12 py-4 bg-slate-900 text-white font-black rounded-2xl text-[10px] uppercase tracking-widest shadow-2xl hover:bg-slate-800 transition-all flex items-center justify-center">
-                                                    {saving ? <div className="animate-spin h-4 w-4 border-2 border-white/30 border-t-white rounded-full mr-3"></div> : <i data-lucide="save" className="w-4 h-4 mr-3"></i>}
-                                                    Actualizar
-                                                </button>
+                                                <button onClick={saveQuoteNotes} disabled={saving} className="flex-1 sm:flex-none px-12 py-4 bg-slate-900 text-white font-black rounded-2xl text-[10px] uppercase tracking-widest shadow-2xl hover:bg-slate-800 transition-all flex items-center justify-center">{saving ? <div className="animate-spin h-4 w-4 border-2 border-white/30 border-t-white rounded-full mr-3"></div> : <i data-lucide="save" className="w-4 h-4 mr-3"></i>}Actualizar</button>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
                             )}
 
-                            {/* View Editor Dinámico - Impecable */}
                             {view === 'editor' && selectedService && (
                                 <div className="animate-fade-in max-w-5xl mx-auto space-y-8 md:space-y-12">
                                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-8">
@@ -452,16 +416,13 @@
                                             <h3 className="text-2xl md:text-4xl font-black text-slate-900 tracking-tighter leading-tight">{selectedService.nombre}</h3>
                                             <div className="flex flex-wrap gap-3 mt-4">
                                                 <span className="bg-cyan-50 text-cyan-600 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-[0.1em] border border-cyan-100">ID: {selectedService.servicio_id}</span>
-                                                <span className="bg-slate-100 text-slate-500 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-[0.1em] border border-slate-200">Motor: {selectedService.regla_calculo ? 'Algoritmo de Proyecto' : 'Matriz de Escalamiento'}</span>
+                                                <span className="bg-slate-100 text-slate-500 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-[0.1em] border border-slate-200">Motor: {getMotorName(selectedService)}</span>
                                             </div>
                                         </div>
-                                        <button onClick={saveChanges} disabled={saving} className="w-full sm:w-auto bg-cyan-500 text-white px-10 md:px-14 py-4 md:py-5 rounded-[2rem] font-black text-xs uppercase tracking-[0.2em] shadow-2xl shadow-cyan-500/30 hover:bg-cyan-400 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center">
-                                            {saving ? <div className="animate-spin h-4 w-4 border-2 border-white/30 border-t-white rounded-full mr-3"></div> : <i data-lucide="cloud-lightning" className="w-5 h-5 mr-4"></i>}
-                                            Sincronizar KV
-                                        </button>
+                                        <button onClick={saveChanges} disabled={saving} className="w-full sm:w-auto bg-cyan-500 text-white px-10 md:px-14 py-4 md:py-5 rounded-[2rem] font-black text-xs uppercase tracking-[0.2em] shadow-2xl shadow-cyan-500/30 hover:bg-cyan-400 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center">{saving ? <div className="animate-spin h-4 w-4 border-2 border-white/30 border-t-white rounded-full mr-3"></div> : <i data-lucide="cloud-lightning" className="w-5 h-5 mr-4"></i>}Sincronizar KV</button>
                                     </div>
 
-                                    {/* MODO MATRIZ (NOC/SOC) */}
+                                    {/* MODO MATRIZ (NOC/SOC/CONTACT CENTER) */}
                                     {selectedService.matriz_precios && (
                                         <div className="grid grid-cols-1 gap-8 md:gap-12">
                                             {['8x5', '7x24'].map(horario => (
@@ -474,13 +435,13 @@
                                                             const item = selectedService.matriz_precios[key];
                                                             if (!item) return null;
                                                             return (
-                                                                <div key={volumen} className="bg-slate-50/60 rounded-[2rem] md:rounded-[2.5rem] p-8 md:p-10 border border-slate-100 hover:bg-white transition-all group shadow-sm hover:shadow-2xl hover:shadow-cyan-500/10">
-                                                                    <label className="text-[9px] font-black text-slate-400 uppercase block mb-6 tracking-widest text-center">Intensidad {volumen}</label>
+                                                                <div key={volumen} className="bg-slate-50/60 rounded-[2rem] md:rounded-[2.5rem] p-8 md:p-10 border border-slate-100 hover:bg-white transition-all group shadow-sm hover:shadow-2xl hover:shadow-cyan-500/10 text-center">
+                                                                    <label className="text-[9px] font-black text-slate-400 uppercase block mb-6 tracking-widest uppercase">Carga {volumen}</label>
                                                                     <div className="relative">
                                                                         <span className="absolute left-0 top-1/2 -translate-y-1/2 text-slate-300 font-black text-2xl">$</span>
-                                                                        <input type="number" value={item.precio?.monto || 0} onChange={(e) => handlePriceUpdate(key, e.target.value)} className="w-full pl-8 pr-4 bg-transparent border-none outline-none text-2xl md:text-3xl font-black text-slate-800 text-center focus:ring-0" />
+                                                                        <input type="number" value={item.precio?.monto || 0} onChange={(e) => handlePriceUpdate(key, e.target.value)} className="w-full pl-8 pr-4 bg-transparent border-none outline-none text-2xl md:text-3xl font-black text-slate-800 text-center focus:ring-0 transition-all" />
                                                                     </div>
-                                                                    <p className="text-[9px] text-slate-400 mt-6 text-center font-extrabold italic tracking-widest uppercase opacity-60">{item.precio?.unidad}</p>
+                                                                    <p className="text-[9px] text-slate-400 mt-6 font-extrabold italic tracking-widest uppercase opacity-60 leading-none">{item.precio?.unidad}</p>
                                                                 </div>
                                                             );
                                                         })}
@@ -490,22 +451,22 @@
                                         </div>
                                     )}
 
-                                    {/* MODO PROYECTO (PENTESTING / ALGORITMOS) */}
-                                    {(selectedService.regla_calculo || selectedService.servicio_id.includes('pentesting')) && (
+                                    {/* MODO PROYECTO (PENTESTING) */}
+                                    {selectedService.regla_calculo && (
                                         <div className="bg-white rounded-[3rem] md:rounded-[4rem] p-8 md:p-12 border border-slate-100 shadow-sm space-y-10 md:space-y-14 relative overflow-hidden">
                                             <div className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none"><i data-lucide="cpu" className="w-40 h-40"></i></div>
-                                            <h4 className="text-[11px] font-black text-slate-900 uppercase flex items-center tracking-[0.3em] relative z-10"><i data-lucide="cpu" className="w-6 h-6 mr-4 text-cyan-500"></i>Configuración de Algoritmo de Cálculo</h4>
+                                            <h4 className="text-[11px] font-black text-slate-900 uppercase flex items-center tracking-[0.3em] relative z-10"><i data-lucide="cpu" className="w-6 h-6 mr-4 text-cyan-500"></i>Parámetros del Algoritmo Pro</h4>
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-14 relative z-10">
                                                 <div className="space-y-6">
                                                     <label className="text-[10px] font-black text-slate-400 uppercase block tracking-[0.2em]">Fórmula Operativa (Días base + extra)</label>
-                                                    <input type="text" value={selectedService.regla_calculo || ""} onChange={(e) => handleProjectRuleUpdate('regla_calculo', e.target.value)} className="w-full px-8 py-5 md:py-6 bg-slate-50 rounded-[2rem] border-2 border-transparent focus:border-cyan-500/20 outline-none text-xl md:text-2xl font-black text-slate-800 shadow-inner focus:bg-white transition-all" />
+                                                    <input type="text" value={selectedService.regla_calculo || ""} onChange={(e) => handleProjectRuleUpdate('regla_calculo', e.target.value)} className="w-full px-8 py-5 md:py-6 bg-slate-50 rounded-[2rem] border-2 border-transparent focus:border-cyan-500/20 outline-none text-xl md:text-2xl font-black text-slate-800 shadow-inner focus:bg-white transition-all shadow-sm" />
                                                     <div className="p-4 bg-amber-50/50 rounded-2xl border border-amber-100/50"><p className="text-[10px] text-amber-700 italic font-bold leading-relaxed">{selectedService.explicacion_regla}</p></div>
                                                 </div>
                                                 <div className="space-y-6">
                                                     <label className="text-[10px] font-black text-slate-400 uppercase block tracking-[0.2em]">Honorarios Día Ing. Senior (MXN)</label>
                                                     <div className="relative">
                                                         <span className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300 font-black text-2xl">$</span>
-                                                        <input type="number" value={selectedService.costos_recursos?.ingeniero_senior?.costo_diario || 0} onChange={(e) => handleProjectRuleUpdate('costo_diario', e.target.value)} className="w-full pl-14 pr-8 py-5 md:py-6 bg-slate-50 rounded-[2rem] border-2 border-transparent focus:border-cyan-500/20 outline-none text-xl md:text-2xl font-black text-slate-800 shadow-inner focus:bg-white transition-all" />
+                                                        <input type="number" value={selectedService.costos_recursos?.ingeniero_senior?.costo_diario || 0} onChange={(e) => handleProjectRuleUpdate('costo_diario', e.target.value)} className="w-full pl-14 pr-8 py-5 md:py-6 bg-slate-50 rounded-[2rem] border-2 border-transparent focus:border-cyan-500/20 outline-none text-xl md:text-2xl font-black text-slate-800 shadow-inner focus:bg-white transition-all shadow-sm" />
                                                     </div>
                                                     <div className="bg-indigo-50 border border-indigo-100 p-5 rounded-2xl flex items-center justify-between">
                                                         <span className="text-[10px] text-indigo-700 font-black uppercase tracking-widest">Multiplicador Retesting</span>
@@ -516,25 +477,24 @@
                                         </div>
                                     )}
 
-                                    {/* MODO PLANES (WORKSPACE / NUBE) */}
+                                    {/* MODO PLANES (WORKSPACE / NUBE GCP) */}
                                     {selectedService.planes && (
                                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-10">
                                             {Object.keys(selectedService.planes).map(pId => (
                                                 <div key={pId} className="bg-white rounded-[2.5rem] md:rounded-[3.5rem] p-8 md:p-10 border border-slate-100 shadow-sm hover:border-cyan-200 transition-all group flex flex-col min-h-[350px] relative overflow-hidden">
-                                                    <div className="absolute -top-6 -right-6 opacity-5"><i data-lucide="package" className="w-24 h-24"></i></div>
                                                     <span className="text-[9px] font-black text-cyan-600 bg-cyan-50 px-4 py-2 rounded-full uppercase tracking-widest w-fit mb-8 border border-cyan-100 relative z-10">{pId}</span>
-                                                    <h4 className="text-xl md:text-2xl font-black text-slate-800 mb-10 leading-tight tracking-tight relative z-10">{selectedService.planes[pId].nombre}</h4>
+                                                    <h4 className="text-xl md:text-2xl font-black text-slate-800 mb-10 leading-tight tracking-tight relative z-10 truncate">{selectedService.planes[pId].nombre}</h4>
                                                     <div className="flex-1 space-y-8 relative z-10">
                                                         <div className="bg-slate-50 p-6 md:p-8 rounded-[2.5rem] shadow-inner transition-colors group-hover:bg-slate-50/40">
-                                                            <label className="text-[9px] font-black text-slate-400 uppercase block mb-2 tracking-widest">Fee Mensual</label>
+                                                            <label className="text-[9px] font-black text-slate-400 uppercase block mb-2 tracking-widest uppercase">Fee Mensual</label>
                                                             <div className="relative">
                                                                 <span className="absolute left-0 top-1/2 -translate-y-1/2 text-slate-300 font-black text-3xl">$</span>
-                                                                <input type="number" value={selectedService.planes[pId].precio_mensual || 0} onChange={(e) => handlePriceUpdate(pId, e.target.value)} className="w-full pl-8 bg-transparent border-none outline-none text-3xl md:text-4xl font-black text-slate-800 focus:ring-0" />
+                                                                <input type="number" value={selectedService.planes[pId].precio_mensual || 0} onChange={(e) => handlePriceUpdate(pId, e.target.value)} className="w-full pl-8 bg-transparent border-none outline-none text-3xl md:text-4xl font-black text-slate-800 focus:ring-0 transition-all" />
                                                             </div>
                                                         </div>
                                                         <div className="grid grid-cols-2 gap-4">
-                                                            <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 text-center"><p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Almacenamiento</p><p className="text-xs font-bold text-slate-700 mt-1">{selectedService.planes[pId].almacenamiento || '---'}</p></div>
-                                                            <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 text-center"><p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Colaboración</p><p className="text-xs font-bold text-slate-700 mt-1">{selectedService.planes[pId].participantes_meet ? `${selectedService.planes[pId].participantes_meet} pax` : '---'}</p></div>
+                                                            <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 text-center"><p className="text-[8px] font-black text-slate-400 uppercase tracking-widest uppercase">Espacio</p><p className="text-xs font-bold text-slate-700 mt-1">{selectedService.planes[pId].almacenamiento || '---'}</p></div>
+                                                            <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 text-center"><p className="text-[8px] font-black text-slate-400 uppercase tracking-widest uppercase">Meet</p><p className="text-xs font-bold text-slate-700 mt-1">{selectedService.planes[pId].participantes_meet ? `${selectedService.planes[pId].participantes_meet} pax` : '---'}</p></div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -542,18 +502,31 @@
                                         </div>
                                     )}
 
-                                    {/* AVISO DE SINCRONIZACIÓN */}
+                                    {/* MODO FALLBACK: EDITOR DE JSON (Para estructuras nuevas desconocidas) */}
+                                    {!selectedService.matriz_precios && !selectedService.regla_calculo && !selectedService.planes && (
+                                        <div className="bg-white rounded-[3rem] p-10 border border-slate-100 shadow-sm space-y-6">
+                                            <div className="bg-amber-50 border border-amber-200 p-6 rounded-[2rem] flex items-start space-x-4">
+                                                <i data-lucide="alert-circle" className="text-amber-500 w-6 h-6"></i>
+                                                <div>
+                                                    <h5 className="font-black text-amber-900 uppercase text-xs tracking-widest">Esquema Desconocido Detectado</h5>
+                                                    <p className="text-amber-700 text-xs mt-1 leading-relaxed">Este servicio tiene una estructura de datos nueva que el panel aún no sabe cómo dibujar visualmente. Puedes editar el JSON crudo directamente abajo para actualizar los valores en Cloudflare KV sin romper nada.</p>
+                                                </div>
+                                            </div>
+                                            <textarea 
+                                                className="w-full h-[450px] p-10 bg-slate-900 text-cyan-400 font-mono text-xs rounded-[3rem] border-none outline-none focus:ring-4 focus:ring-cyan-500/10 custom-scrollbar leading-loose"
+                                                value={JSON.stringify(selectedService, null, 2)}
+                                                onChange={(e) => handleRawJsonUpdate(e.target.value)}
+                                            ></textarea>
+                                        </div>
+                                    )}
+
                                     <div className="bg-slate-900 text-white p-8 md:p-12 rounded-[3rem] md:rounded-[4rem] shadow-2xl flex flex-col md:flex-row items-center justify-between gap-8">
                                         <div className="flex items-center space-x-6">
                                             <div className="p-4 bg-cyan-500/10 rounded-[1.5rem] border border-cyan-500/20"><i data-lucide="shield-check" className="w-8 h-8 text-cyan-400"></i></div>
                                             <div>
-                                                <h5 className="text-lg font-black tracking-tight">Consola de Seguridad Cloud</h5>
-                                                <p className="text-slate-400 text-xs md:text-sm mt-1 leading-relaxed max-w-md">Cualquier cambio guardado se propagará a través de la red global de Cloudflare en milisegundos, actualizando la lógica de todos los agentes B-drive.</p>
+                                                <h5 className="text-lg font-black tracking-tight leading-none uppercase tracking-widest">Consola Cloud Sincronizada</h5>
+                                                <p className="text-slate-400 text-xs md:text-sm mt-3 leading-relaxed max-w-md">Cualquier cambio guardado se propagará a través de la red global de Cloudflare en milisegundos, actualizando la lógica de todos los agentes B-drive.</p>
                                             </div>
-                                        </div>
-                                        <div className="flex items-center space-x-3 text-[10px] font-black uppercase tracking-[0.2em] opacity-40 italic">
-                                            <div className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse"></div>
-                                            <span>Estado: Edge Sincronizado</span>
                                         </div>
                                     </div>
                                 </div>
