@@ -43,7 +43,7 @@
         .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
 
-        .animate-fade-in { animation: fadeIn 0.4s ease-out; }
+        .animate-fade-in { animation: fadeIn 0.3s ease-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
         .modal-overlay { background: rgba(2, 6, 23, 0.8); backdrop-filter: blur(6px); z-index: 100; }
@@ -67,6 +67,12 @@
         const { useState, useEffect, useMemo, useRef } = React;
 
         const API_BASE_URL = "https://bdrive-admin-api.smartpasses.workers.dev"; 
+
+        // Función para limpiar nombres (Quitar Google Workspace)
+        const cleanServiceName = (name) => {
+            if (!name) return "";
+            return name.replace(/\(Google Workspace\)/gi, "").trim();
+        };
 
         const App = () => {
             const [view, setView] = useState('dashboard');
@@ -137,7 +143,8 @@
                 if (ctx2) {
                     if (chartRef2.current) chartRef2.current.destroy();
                     const serviceData = quotes.reduce((acc, q) => {
-                        acc[q.servicio || "Otros"] = (acc[q.servicio || "Otros"] || 0) + 1;
+                        const name = cleanServiceName(q.servicio || "Otros");
+                        acc[name] = (acc[name] || 0) + 1;
                         return acc;
                     }, {});
                     chartRef2.current = new Chart(ctx2, {
@@ -151,22 +158,22 @@
                 }
             };
 
-            const handlePriceUpdate = (matrixKey, value) => {
+            const handlePriceUpdate = (matrixKey, value, subKey = 'precio') => {
                 if (!selectedService) return;
                 const updated = JSON.parse(JSON.stringify(selectedService));
                 const val = parseFloat(value) || 0;
                 
-                // Prioridad 1: Matriz NOC/SOC
                 if (updated.matriz_precios?.[matrixKey]?.precio) {
                     updated.matriz_precios[matrixKey].precio.monto = val;
                 } 
-                // Prioridad 2: Planes Workspace/Nube
                 else if (updated.planes?.[matrixKey]) {
                     updated.planes[matrixKey].precio_mensual = val;
                 }
-                // Prioridad 3: Contact Center (Agentes)
                 else if (updated.precios_por_agente_mes_mxn?.[matrixKey]) {
                     updated.precios_por_agente_mes_mxn[matrixKey].precio = val;
+                }
+                else if (updated.tipos_instancia?.[matrixKey]) {
+                    updated.tipos_instancia[matrixKey][subKey] = val;
                 }
                 setSelectedService(updated);
             };
@@ -240,6 +247,7 @@
                 if (s.regla_calculo) return "Algoritmo de Proyecto";
                 if (s.planes) return "Suscripción por Planes";
                 if (s.precios_por_agente_mes_mxn) return "Tarifario por Agentes";
+                if (s.tipos_instancia) return "Recursos de Infraestructura Nube";
                 return "Estructura Personalizada";
             };
 
@@ -270,7 +278,7 @@
                                 <button key={s.servicio_id} onClick={() => { setSelectedService(s); setView('editor'); }} className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all group ${selectedService?.servicio_id === s.servicio_id && view === 'editor' ? 'sidebar-item-active text-white bg-slate-800/50' : 'hover:bg-slate-800/30'}`}>
                                     <div className="flex items-center space-x-3">
                                         <i data-lucide={getServiceIcon(s)} className="w-4 h-4 opacity-70 group-hover:opacity-100"></i>
-                                        <span className="text-sm font-medium">{s.nombre_corto || s.nombre}</span>
+                                        <span className="text-sm font-medium">{cleanServiceName(s.nombre_corto || s.nombre)}</span>
                                     </div>
                                     <i data-lucide="chevron-right" className={`w-3 h-3 transition-transform ${selectedService?.servicio_id === s.servicio_id ? 'rotate-90 opacity-100' : 'opacity-0 group-hover:opacity-40'}`}></i>
                                 </button>
@@ -290,7 +298,7 @@
                             <button onClick={() => { setView('dashboard'); setIsSidebarOpen(false); }} className={`w-full flex items-center space-x-4 px-5 py-4 rounded-2xl ${view === 'dashboard' ? 'sidebar-item-active bg-slate-800' : ''}`}><i data-lucide="layout-dashboard" className="w-5 h-5"></i><span>Dashboard</span></button>
                             <button onClick={() => { setView('quotes'); setIsSidebarOpen(false); }} className={`w-full flex items-center space-x-4 px-5 py-4 rounded-2xl ${view === 'quotes' ? 'sidebar-item-active bg-slate-800' : ''}`}><i data-lucide="file-text" className="w-5 h-5"></i><span>Leads</span></button>
                             {services.map(s => (
-                                <button key={s.servicio_id} onClick={() => { setSelectedService(s); setView('editor'); setIsSidebarOpen(false); }} className={`w-full flex items-center space-x-4 px-5 py-4 rounded-2xl ${selectedService?.servicio_id === s.servicio_id && view === 'editor' ? 'sidebar-item-active bg-slate-800' : ''}`}><i data-lucide={getServiceIcon(s)} className="w-4 h-4"></i><span>{s.nombre_corto || s.nombre}</span></button>
+                                <button key={s.servicio_id} onClick={() => { setSelectedService(s); setView('editor'); setIsSidebarOpen(false); }} className={`w-full flex items-center space-x-4 px-5 py-4 rounded-2xl ${selectedService?.servicio_id === s.servicio_id && view === 'editor' ? 'sidebar-item-active bg-slate-800' : ''}`}><i data-lucide={getServiceIcon(s)} className="w-4 h-4"></i><span>{cleanServiceName(s.nombre_corto || s.nombre)}</span></button>
                             ))}
                         </nav>
                     </aside>
@@ -300,7 +308,7 @@
                             <div className="flex items-center space-x-4">
                                 <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden p-2.5 text-slate-600 bg-white rounded-xl shadow-sm border border-slate-200"><i data-lucide="menu" className="w-6 h-6"></i></button>
                                 <h2 className="text-sm md:text-lg font-bold text-slate-800 truncate uppercase tracking-[0.1em] font-black">
-                                    {view === 'quotes' ? 'Historial Leads' : view === 'dashboard' ? 'Performance Global' : selectedService?.nombre}
+                                    {view === 'quotes' ? 'Historial Leads' : view === 'dashboard' ? 'Performance Global' : cleanServiceName(selectedService?.nombre)}
                                 </h2>
                             </div>
                             <div className="flex items-center space-x-2 md:space-x-5">
@@ -360,7 +368,7 @@
                                                 {currentLeads.map(q => (
                                                     <tr key={q.id} className="hover:bg-slate-50/40 transition-all group">
                                                         <td className="p-7"><p className="text-sm font-extrabold text-slate-800 tracking-tight">{q.cliente}</p><p className="text-[10px] text-slate-400 mt-1 font-mono uppercase tracking-tighter">{q.id.substring(0,18)}...</p></td>
-                                                        <td className="p-7 text-sm font-semibold text-slate-500">{q.servicio}</td>
+                                                        <td className="p-7 text-sm font-semibold text-slate-500">{cleanServiceName(q.servicio)}</td>
                                                         <td className="p-7 text-sm font-black text-right">${(q.monto || 0).toLocaleString()} <span className="text-[9px] opacity-40 ml-1 uppercase">MXN</span></td>
                                                         <td className="p-7 text-center space-x-2">
                                                             <button onClick={() => setSelectedQuote(q)} className="p-2.5 text-slate-300 hover:text-cyan-600 hover:bg-white border border-transparent hover:border-cyan-100 rounded-xl transition-all shadow-sm"><i data-lucide="edit-3" className="w-4 h-4"></i></button>
@@ -420,10 +428,10 @@
                             )}
 
                             {view === 'editor' && selectedService && (
-                                <div className="animate-fade-in max-w-5xl mx-auto space-y-8 md:space-y-12 pb-20">
+                                <div className="animate-fade-in max-w-5xl mx-auto space-y-8 md:space-y-12 pb-20 text-left">
                                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-8">
                                         <div className="min-w-0 flex-1">
-                                            <h3 className="text-2xl md:text-4xl font-black text-slate-900 tracking-tighter leading-tight">{selectedService.nombre}</h3>
+                                            <h3 className="text-2xl md:text-4xl font-black text-slate-900 tracking-tighter leading-tight">{cleanServiceName(selectedService.nombre)}</h3>
                                             <div className="flex flex-wrap gap-3 mt-4">
                                                 <span className="bg-cyan-50 text-cyan-600 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-[0.1em] border border-cyan-100">ID: {selectedService.servicio_id}</span>
                                                 <span className="bg-slate-100 text-slate-500 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-[0.1em] border border-slate-200">Motor: {getMotorName(selectedService)}</span>
@@ -432,7 +440,7 @@
                                         <button onClick={saveChanges} disabled={saving} className="w-full sm:w-auto bg-cyan-500 text-white px-10 md:px-14 py-4 md:py-5 rounded-[2rem] font-black text-xs uppercase tracking-[0.2em] shadow-2xl shadow-cyan-500/30 hover:bg-cyan-400 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center">{saving ? <div className="animate-spin h-4 w-4 border-2 border-white/30 border-t-white rounded-full mr-3"></div> : <i data-lucide="cloud-lightning" className="w-5 h-5 mr-4"></i>}Sincronizar KV</button>
                                     </div>
 
-                                    {/* MODO MATRIZ (NOC/SOC/CONTACT CENTER) */}
+                                    {/* MODO MATRIZ (NOC/SOC) */}
                                     {selectedService.matriz_precios && (
                                         <div className="grid grid-cols-1 gap-8 md:gap-12">
                                             {['8x5', '7x24'].map(horario => (
@@ -446,7 +454,7 @@
                                                             if (!item) return null;
                                                             return (
                                                                 <div key={volumen} className="bg-slate-50/60 rounded-[2rem] md:rounded-[2.5rem] p-8 md:p-10 border border-slate-100 hover:bg-white transition-all group shadow-sm hover:shadow-2xl hover:shadow-cyan-500/10 text-center">
-                                                                    <label className="text-[9px] font-black text-slate-400 uppercase block mb-6 tracking-widest">Carga {volumen}</label>
+                                                                    <label className="text-[9px] font-black text-slate-400 uppercase block mb-6 tracking-widest uppercase">Carga {volumen}</label>
                                                                     <div className="relative">
                                                                         <span className="absolute left-0 top-1/2 -translate-y-1/2 text-slate-300 font-black text-2xl">$</span>
                                                                         <input type="number" value={item.precio?.monto || 0} onChange={(e) => handlePriceUpdate(key, e.target.value)} className="w-full pl-8 pr-4 bg-transparent border-none outline-none text-2xl md:text-3xl font-black text-slate-800 text-center focus:ring-0 transition-all" />
@@ -464,8 +472,8 @@
                                     {/* MODO PROYECTO (PENTESTING) */}
                                     {selectedService.regla_calculo && (
                                         <div className="bg-white rounded-[3rem] md:rounded-[4rem] p-8 md:p-12 border border-slate-100 shadow-sm space-y-10 md:space-y-14 relative overflow-hidden">
-                                            <div className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none"><i data-lucide="cpu" className="w-40 h-40"></i></div>
-                                            <h4 className="text-[11px] font-black text-slate-900 uppercase flex items-center tracking-[0.3em] relative z-10"><i data-lucide="cpu" className="w-6 h-6 mr-4 text-cyan-500"></i>Configuración de Algoritmo de Cálculo</h4>
+                                            <div className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none"><i data-lucide="cpu" className="w-40 h-40 text-cyan-500"></i></div>
+                                            <h4 className="text-[11px] font-black text-slate-900 uppercase flex items-center tracking-[0.3em] relative z-10"><i data-lucide="cpu" className="w-6 h-6 mr-4 text-cyan-500"></i>Parámetros del Algoritmo Pro</h4>
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-14 relative z-10">
                                                 <div className="space-y-6">
                                                     <label className="text-[10px] font-black text-slate-400 uppercase block tracking-[0.2em]">Fórmula Operativa (Días base + extra)</label>
@@ -478,41 +486,65 @@
                                                         <span className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300 font-black text-2xl">$</span>
                                                         <input type="number" value={selectedService.costos_recursos?.ingeniero_senior?.costo_diario || 0} onChange={(e) => handleProjectRuleUpdate('costo_diario', e.target.value)} className="w-full pl-14 pr-8 py-5 md:py-6 bg-slate-50 rounded-[2rem] border-2 border-transparent focus:border-cyan-500/20 outline-none text-xl md:text-2xl font-black text-slate-800 shadow-inner focus:bg-white transition-all shadow-sm" />
                                                     </div>
-                                                    <div className="bg-indigo-50 border border-indigo-100 p-5 rounded-2xl flex items-center justify-between shadow-inner">
-                                                        <span className="text-[10px] text-indigo-700 font-black uppercase tracking-widest">Multiplicador Retesting</span>
-                                                        <span className="text-lg font-black text-indigo-800">x{selectedService.retesting?.multiplicador || 2}</span>
-                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
                                     )}
 
-                                    {/* MODO CONTACT CENTER (NUEVO) */}
+                                    {/* MODO CONTACT CENTER */}
                                     {selectedService.precios_por_agente_mes_mxn && (
-                                        <div className="bg-white rounded-[3rem] md:rounded-[4rem] p-8 md:p-12 border border-slate-100 shadow-sm space-y-10 md:space-y-14 relative overflow-hidden">
-                                            <div className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none"><i data-lucide="headphones" className="w-40 h-40 text-blue-500"></i></div>
-                                            <h4 className="text-[11px] font-black text-slate-900 uppercase flex items-center tracking-[0.3em] relative z-10"><i data-lucide="headphones" className="w-6 h-6 mr-4 text-cyan-500"></i>Tarifario por Agentes Activos</h4>
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-10 relative z-10">
-                                                {Object.keys(selectedService.precios_por_agente_mes_mxn).map(key => (
-                                                    <div key={key} className="bg-slate-50/60 rounded-[2rem] p-8 md:p-10 border border-slate-100 hover:bg-white transition-all shadow-sm">
-                                                        <label className="text-[9px] font-black text-slate-400 uppercase block mb-6 tracking-widest text-center">Plan {key.toUpperCase()}</label>
-                                                        <div className="relative">
-                                                            <span className="absolute left-0 top-1/2 -translate-y-1/2 text-slate-300 font-black text-2xl">$</span>
-                                                            <input type="number" value={selectedService.precios_por_agente_mes_mxn[key].precio || 0} onChange={(e) => handlePriceUpdate(key, e.target.value)} className="w-full pl-8 pr-4 bg-transparent border-none outline-none text-2xl md:text-3xl font-black text-slate-800 text-center focus:ring-0" />
+                                        <div className="grid grid-cols-1 gap-8 md:gap-12">
+                                            <div className="bg-white rounded-[3rem] md:rounded-[4rem] p-8 md:p-12 border border-slate-100 shadow-sm relative overflow-hidden">
+                                                <div className="absolute -top-10 -right-10 opacity-5 pointer-events-none"><i data-lucide="headphones" className="w-48 h-48"></i></div>
+                                                <h4 className="text-[11px] font-black text-slate-900 uppercase mb-10 md:mb-14 flex items-center tracking-[0.3em] relative z-10 font-bold"><i data-lucide="headphones" className="w-6 h-6 mr-4 text-cyan-500"></i>Tarifario por Licenciamiento (Agentes)</h4>
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-10 relative z-10">
+                                                    {Object.keys(selectedService.precios_por_agente_mes_mxn).map(key => (
+                                                        <div key={key} className="bg-slate-50/60 rounded-[2rem] p-8 md:p-10 border border-slate-100 hover:bg-white transition-all text-center">
+                                                            <label className="text-[9px] font-black text-slate-400 uppercase block mb-6 tracking-widest">NIVEL {key.toUpperCase()}</label>
+                                                            <div className="relative">
+                                                                <span className="absolute left-0 top-1/2 -translate-y-1/2 text-slate-300 font-black text-2xl">$</span>
+                                                                <input type="number" value={selectedService.precios_por_agente_mes_mxn[key].precio || 0} onChange={(e) => handlePriceUpdate(key, e.target.value)} className="w-full pl-8 pr-4 bg-transparent border-none outline-none text-2xl md:text-3xl font-black text-slate-800 text-center focus:ring-0 transition-all" />
+                                                            </div>
+                                                            <p className="text-[9px] text-slate-400 mt-6 font-extrabold tracking-widest uppercase opacity-60">MXN / AGENTE / MES</p>
                                                         </div>
-                                                        <p className="text-[9px] text-slate-400 mt-6 text-center font-extrabold uppercase tracking-widest opacity-60 leading-none">Agente / Mes</p>
-                                                    </div>
-                                                ))}
+                                                    ))}
+                                                </div>
                                             </div>
                                         </div>
                                     )}
 
-                                    {/* MODO PLANES (WORKSPACE / NUBE) */}
+                                    {/* MODO NUBE GCP (INSTANCIAS) */}
+                                    {selectedService.tipos_instancia && (
+                                        <div className="grid grid-cols-1 gap-8 md:gap-12">
+                                            <div className="bg-white rounded-[3rem] md:rounded-[4rem] p-8 md:p-12 border border-slate-100 shadow-sm relative overflow-hidden">
+                                                <div className="absolute -top-10 -right-10 opacity-5 pointer-events-none"><i data-lucide="cloud" className="w-48 h-48"></i></div>
+                                                <h4 className="text-[11px] font-black text-slate-900 uppercase mb-10 md:mb-14 flex items-center tracking-[0.3em] relative z-10 font-bold"><i data-lucide="cloud" className="w-6 h-6 mr-4 text-cyan-500"></i>Configuración de Instancias Compute Engine</h4>
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-10 relative z-10">
+                                                    {Object.keys(selectedService.tipos_instancia).map(key => (
+                                                        <div key={key} className="bg-slate-50/60 rounded-[2rem] p-8 md:p-10 border border-slate-100 hover:bg-white transition-all">
+                                                            <label className="text-[9px] font-black text-slate-400 uppercase block mb-6 tracking-widest text-center">{selectedService.tipos_instancia[key].nombre}</label>
+                                                            <div className="space-y-4">
+                                                                <div>
+                                                                    <p className="text-[8px] font-bold text-slate-400 uppercase mb-1">vCPUs</p>
+                                                                    <input type="number" step="0.01" value={selectedService.tipos_instancia[key].vcpus || 0} onChange={(e) => handlePriceUpdate(key, e.target.value, 'vcpus')} className="w-full bg-white rounded-xl border-none p-2 text-sm font-bold text-slate-800 shadow-inner" />
+                                                                </div>
+                                                                <div>
+                                                                    <p className="text-[8px] font-bold text-slate-400 uppercase mb-1">RAM (GB)</p>
+                                                                    <input type="number" value={selectedService.tipos_instancia[key].ram_gb || 0} onChange={(e) => handlePriceUpdate(key, e.target.value, 'ram_gb')} className="w-full bg-white rounded-xl border-none p-2 text-sm font-bold text-slate-800 shadow-inner" />
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* MODO PLANES (WORKSPACE / CORREO) */}
                                     {selectedService.planes && (
                                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-10">
                                             {Object.keys(selectedService.planes).map(pId => (
                                                 <div key={pId} className="bg-white rounded-[2.5rem] md:rounded-[3.5rem] p-8 md:p-10 border border-slate-100 shadow-sm hover:border-cyan-200 transition-all group flex flex-col min-h-[350px] relative overflow-hidden">
-                                                    <div className="absolute -top-6 -right-6 opacity-5 pointer-events-none"><i data-lucide="package" className="w-24 h-24 text-cyan-400"></i></div>
                                                     <span className="text-[9px] font-black text-cyan-600 bg-cyan-50 px-4 py-2 rounded-full uppercase tracking-widest w-fit mb-8 border border-cyan-100 relative z-10">{pId}</span>
                                                     <h4 className="text-xl md:text-2xl font-black text-slate-800 mb-10 leading-tight tracking-tight relative z-10 truncate">{selectedService.planes[pId].nombre}</h4>
                                                     <div className="flex-1 space-y-8 relative z-10">
@@ -524,8 +556,8 @@
                                                             </div>
                                                         </div>
                                                         <div className="grid grid-cols-2 gap-4">
-                                                            <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 text-center"><p className="text-[8px] font-black text-slate-400 uppercase tracking-widest uppercase">Espacio</p><p className="text-xs font-bold text-slate-700 mt-1 truncate">{selectedService.planes[pId].almacenamiento || '---'}</p></div>
-                                                            <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 text-center"><p className="text-[8px] font-black text-slate-400 uppercase tracking-widest uppercase">Meet</p><p className="text-xs font-bold text-slate-700 mt-1 truncate">{selectedService.planes[pId].participantes_meet ? `${selectedService.planes[pId].participantes_meet} pax` : '---'}</p></div>
+                                                            <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 text-center"><p className="text-[8px] font-black text-slate-400 uppercase tracking-widest uppercase">Espacio</p><p className="text-xs font-bold text-slate-700 mt-1">{selectedService.planes[pId].almacenamiento || '---'}</p></div>
+                                                            <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 text-center"><p className="text-[8px] font-black text-slate-400 uppercase tracking-widest uppercase">Meet</p><p className="text-xs font-bold text-slate-700 mt-1">{selectedService.planes[pId].participantes_meet ? `${selectedService.planes[pId].participantes_meet} pax` : '---'}</p></div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -534,7 +566,7 @@
                                     )}
 
                                     {/* MODO FALLBACK: EDITOR DE JSON (Para estructuras nuevas desconocidas) */}
-                                    {!selectedService.matriz_precios && !selectedService.regla_calculo && !selectedService.planes && !selectedService.precios_por_agente_mes_mxn && (
+                                    {!selectedService.matriz_precios && !selectedService.regla_calculo && !selectedService.planes && !selectedService.precios_por_agente_mes_mxn && !selectedService.tipos_instancia && (
                                         <div className="bg-white rounded-[3rem] p-10 border border-slate-100 shadow-sm space-y-6">
                                             <div className="bg-amber-50 border border-amber-200 p-6 rounded-[2rem] flex items-start space-x-4 shadow-sm">
                                                 <i data-lucide="alert-circle" className="text-amber-500 w-6 h-6 shrink-0 mt-1"></i>
