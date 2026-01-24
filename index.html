@@ -12,23 +12,50 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
-        :root { --bdrive-dark: #020617; --bdrive-navy: #0f172a; --bdrive-cyan: #06b6d4; --bdrive-blue: #3b82f6; }
-        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8fafc; color: #1e293b; overflow-x: hidden; }
-        .glass-panel { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(226, 232, 240, 0.8); }
-        .sidebar-item-active { background: linear-gradient(90deg, rgba(6, 182, 212, 0.1) 0%, rgba(6, 182, 212, 0) 100%); border-left: 4px solid var(--bdrive-cyan); color: var(--bdrive-cyan); font-weight: 700; }
+        
+        :root { 
+            --bdrive-dark: #020617; 
+            --bdrive-navy: #0f172a; 
+            --bdrive-cyan: #06b6d4; 
+            --bdrive-blue: #3b82f6; 
+        }
+
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            background-color: #f8fafc; 
+            color: #1e293b; 
+            overflow-x: hidden; 
+        }
+
+        /* Efecto Glassmorphism */
+        .glass-panel { 
+            background: rgba(255, 255, 255, 0.9); 
+            backdrop-filter: blur(12px); 
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8); 
+        }
+
+        /* Sidebar activo */
+        .sidebar-item-active { 
+            background: linear-gradient(90deg, rgba(6, 182, 212, 0.1) 0%, rgba(6, 182, 212, 0) 100%); 
+            border-left: 4px solid var(--bdrive-cyan); 
+            color: var(--bdrive-cyan); 
+            font-weight: 700; 
+        }
+
         .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+
         .animate-fade-in { animation: fadeIn 0.3s ease-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
         .modal-overlay { background: rgba(2, 6, 23, 0.8); backdrop-filter: blur(4px); }
         .chart-container { position: relative; height: 250px; width: 100%; }
         .notes-textarea { resize: none; scrollbar-width: thin; }
         
-        /* Mobile Overlay Sidebar */
         .sidebar-mobile {
             transform: translateX(-100%);
-            transition: transform 0.3s ease-in-out;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .sidebar-mobile.open {
             transform: translateX(0);
@@ -82,7 +109,7 @@
                     const sRes = await fetch(`${API_BASE_URL}/api/services`);
                     if (sRes.ok) setServices(await sRes.json());
                 } catch (err) {
-                    setMessage({ text: "Error de conexión con la infraestructura", type: "error" });
+                    setMessage({ text: "Error de conexión", type: "error" });
                 } finally {
                     setLoading(false);
                 }
@@ -130,7 +157,7 @@
                                 borderWidth: 0
                             }]
                         },
-                        options: { responsive: true, maintainAspectRatio: false, cutout: '70%' }
+                        options: { responsive: true, maintainAspectRatio: false, cutout: '75%' }
                     });
                 }
             };
@@ -176,7 +203,8 @@
                     setQuotes(quotes.map(q => q.id === selectedQuote.id ? selectedQuote : q));
                     setSaving(false);
                     setIsEditingQuote(false);
-                    setMessage({ text: "Seguimiento actualizado correctamente", type: "success" });
+                    setSelectedQuote(null);
+                    setMessage({ text: "Seguimiento guardado", type: "success" });
                     setTimeout(() => setMessage(null), 3000);
                 }, 800);
             };
@@ -189,10 +217,10 @@
                         body: JSON.stringify(selectedService) 
                     });
                     if (res.ok) {
-                        setMessage({ text: `Sincronización exitosa: ${selectedService.nombre}`, type: "success" });
+                        setMessage({ text: "Cambios publicados en Cloudflare", type: "success" });
                         setServices(services.map(s => s.servicio_id === selectedService.servicio_id ? selectedService : s));
                     }
-                } catch (err) { setMessage({ text: "Error de sincronización", type: "error" }); }
+                } catch (err) { setMessage({ text: "Error al sincronizar", type: "error" }); }
                 finally { setSaving(false); setTimeout(() => setMessage(null), 3000); }
             };
 
@@ -221,26 +249,26 @@
             if (loading) return (
                 <div className="h-screen w-full flex flex-col items-center justify-center bg-slate-900 text-white">
                     <div className="w-12 h-12 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-                    <p className="font-bold tracking-widest text-xs uppercase opacity-40 text-center px-4">Cargando B-drive Management...</p>
+                    <p className="font-bold tracking-widest text-xs uppercase opacity-40 text-center px-4">B-drive Cloud Console</p>
                 </div>
             );
 
             return (
-                <div className="flex h-screen overflow-hidden relative">
+                <div className="flex h-screen overflow-hidden relative bg-slate-50">
                     {/* Sidebar Desktop */}
-                    <aside className="hidden lg:flex w-72 bg-slate-900 text-slate-300 flex-col border-r border-slate-800">
+                    <aside className="hidden lg:flex w-72 bg-slate-900 text-slate-300 flex flex-col border-r border-slate-800">
                         <div className="p-8 flex items-center space-x-3">
                             <div className="bg-cyan-500 p-2 rounded-2xl shadow-lg shadow-cyan-500/20"><i data-lucide="zap" className="w-6 h-6 text-white"></i></div>
                             <div><h1 className="text-xl font-bold text-white tracking-tight leading-none">B-drive</h1><span className="text-[10px] text-cyan-400 font-bold uppercase tracking-widest">Admin Console</span></div>
                         </div>
-                        <nav className="flex-1 px-4 space-y-1">
+                        <nav className="flex-1 px-4 space-y-1 overflow-y-auto custom-scrollbar">
                             <button onClick={() => setView('dashboard')} className={`w-full flex items-center space-x-3 px-4 py-3.5 rounded-xl transition-all ${view === 'dashboard' ? 'sidebar-item-active text-white bg-slate-800/50' : 'hover:bg-slate-800/30'}`}>
                                 <i data-lucide="layout-dashboard" className="w-5 h-5"></i><span className="font-medium text-sm">Dashboard</span>
                             </button>
                             <button onClick={() => { setView('quotes'); setCurrentPage(1); }} className={`w-full flex items-center space-x-3 px-4 py-3.5 rounded-xl transition-all ${view === 'quotes' ? 'sidebar-item-active text-white bg-slate-800/50' : 'hover:bg-slate-800/30'}`}>
                                 <i data-lucide="file-text" className="w-5 h-5"></i><span className="font-medium text-sm">Leads y Auditoría</span>
                             </button>
-                            <div className="pt-8 pb-3 px-4 font-bold text-[10px] text-slate-500 uppercase tracking-widest">Catálogo de Servicios</div>
+                            <div className="pt-8 pb-3 px-4 font-bold text-[10px] text-slate-500 uppercase tracking-widest">Servicios Disponibles</div>
                             {services.map(s => (
                                 <button key={s.servicio_id} onClick={() => { setSelectedService(s); setView('editor'); }} className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all group ${selectedService?.servicio_id === s.servicio_id && view === 'editor' ? 'sidebar-item-active text-white bg-slate-800/50' : 'hover:bg-slate-800/30'}`}>
                                     <div className="flex items-center space-x-3">
@@ -262,7 +290,7 @@
                                 <div className="bg-cyan-500 p-2 rounded-2xl shadow-lg shadow-cyan-500/20"><i data-lucide="zap" className="w-6 h-6 text-white"></i></div>
                                 <h1 className="text-xl font-bold text-white tracking-tight leading-none">B-drive</h1>
                             </div>
-                            <button onClick={() => setIsSidebarOpen(false)} className="text-slate-400"><i data-lucide="x" className="w-6 h-6"></i></button>
+                            <button onClick={() => setIsSidebarOpen(false)} className="text-slate-400 p-2"><i data-lucide="x" className="w-6 h-6"></i></button>
                         </div>
                         <nav className="flex-1 px-4 space-y-1">
                             <button onClick={() => { setView('dashboard'); setIsSidebarOpen(false); }} className={`w-full flex items-center space-x-3 px-4 py-3.5 rounded-xl transition-all ${view === 'dashboard' ? 'sidebar-item-active text-white bg-slate-800/50' : 'hover:bg-slate-800/30'}`}>
@@ -283,18 +311,18 @@
                         </nav>
                     </aside>
 
-                    {/* Main Content */}
+                    {/* Main Content Area */}
                     <main className="flex-1 flex flex-col min-w-0 bg-slate-50 overflow-hidden">
                         <header className="h-20 glass-panel border-b border-slate-200 px-4 md:px-10 flex items-center justify-between z-10">
                             <div className="flex items-center space-x-4">
-                                <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden p-2 text-slate-600"><i data-lucide="menu" className="w-6 h-6"></i></button>
-                                <h2 className="text-sm md:text-lg font-bold text-slate-800 truncate max-w-[150px] md:max-w-none">
-                                    {view === 'quotes' ? 'Historial Comercial' : view === 'dashboard' ? 'Métricas de Sistema' : selectedService?.nombre}
+                                <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"><i data-lucide="menu" className="w-6 h-6"></i></button>
+                                <h2 className="text-sm md:text-lg font-bold text-slate-800 truncate">
+                                    {view === 'quotes' ? 'Gestión Comercial' : view === 'dashboard' ? 'Performance Global' : selectedService?.nombre}
                                 </h2>
                             </div>
                             <div className="flex items-center space-x-2 md:space-x-5">
                                 <button onClick={fetchInitialData} className="p-2 md:p-2.5 text-slate-400 hover:text-cyan-600 bg-white rounded-xl shadow-sm border border-slate-100 transition-all active:rotate-180"><i data-lucide="refresh-cw" className="w-4 md:w-5 h-4 md:h-5"></i></button>
-                                <div className="h-10 w-10 rounded-xl bg-slate-800 text-white flex items-center justify-center font-bold">B</div>
+                                <div className="h-10 w-10 rounded-xl bg-slate-800 text-white flex items-center justify-center font-bold shadow-lg">B</div>
                             </div>
                         </header>
 
@@ -308,30 +336,30 @@
                             {view === 'dashboard' && (
                                 <div className="animate-fade-in space-y-6 md:space-y-8">
                                     <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 md:gap-6">
-                                        <div className="bg-white p-6 md:p-7 rounded-[1.5rem] md:rounded-[2rem] border border-slate-100 shadow-sm">
-                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center sm:text-left">Ingresos Proyectados</p>
-                                            <h3 className="text-xl md:text-2xl font-black mt-2 text-cyan-600 text-center sm:text-left">${Number(stats.total).toLocaleString()}</h3>
+                                        <div className="bg-white p-6 md:p-7 rounded-[1.5rem] md:rounded-[2rem] border border-slate-100 shadow-sm transition-transform hover:scale-[1.02]">
+                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Ingresos Proyectados</p>
+                                            <h3 className="text-xl md:text-2xl font-black mt-2 text-cyan-600">${Number(stats.total).toLocaleString()}</h3>
                                         </div>
-                                        <div className="bg-white p-6 md:p-7 rounded-[1.5rem] md:rounded-[2rem] border border-slate-100 shadow-sm">
-                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center sm:text-left">Leads Totales</p>
-                                            <h3 className="text-xl md:text-2xl font-black mt-2 text-slate-800 text-center sm:text-left">{stats.count}</h3>
+                                        <div className="bg-white p-6 md:p-7 rounded-[1.5rem] md:rounded-[2rem] border border-slate-100 shadow-sm transition-transform hover:scale-[1.02]">
+                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Leads Totales</p>
+                                            <h3 className="text-xl md:text-2xl font-black mt-2 text-slate-800">{stats.count}</h3>
                                         </div>
-                                        <div className="bg-white p-6 md:p-7 rounded-[1.5rem] md:rounded-[2rem] border border-slate-100 shadow-sm">
-                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center sm:text-left">Ticket Promedio</p>
-                                            <h3 className="text-xl md:text-2xl font-black mt-2 text-indigo-600 text-center sm:text-left">${Number(stats.avg).toLocaleString()}</h3>
+                                        <div className="bg-white p-6 md:p-7 rounded-[1.5rem] md:rounded-[2rem] border border-slate-100 shadow-sm transition-transform hover:scale-[1.02]">
+                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Ticket Promedio</p>
+                                            <h3 className="text-xl md:text-2xl font-black mt-2 text-indigo-600">${Number(stats.avg).toLocaleString()}</h3>
                                         </div>
-                                        <div className="bg-white p-6 md:p-7 rounded-[1.5rem] md:rounded-[2rem] border border-slate-100 shadow-sm">
-                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center sm:text-left">Estado Worker</p>
-                                            <h3 className="text-xl md:text-2xl font-black mt-2 text-emerald-500 text-center sm:text-left">Activo</h3>
+                                        <div className="bg-white p-6 md:p-7 rounded-[1.5rem] md:rounded-[2rem] border border-slate-100 shadow-sm transition-transform hover:scale-[1.02]">
+                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Estado Worker</p>
+                                            <h3 className="text-xl md:text-2xl font-black mt-2 text-emerald-500">ONLINE</h3>
                                         </div>
                                     </div>
                                     <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 md:gap-8">
-                                        <div className="bg-white p-6 md:p-8 rounded-[1.5rem] md:rounded-[2.5rem] border border-slate-100 shadow-sm min-h-[300px]">
-                                            <h4 className="text-sm font-bold text-slate-800 mb-6 flex items-center"><i data-lucide="trending-up" className="w-4 h-4 mr-2 text-cyan-500"></i> Tendencia de Cotizaciones</h4>
+                                        <div className="bg-white p-6 md:p-8 rounded-[1.5rem] md:rounded-[2.5rem] border border-slate-100 shadow-sm min-h-[350px]">
+                                            <h4 className="text-sm font-bold text-slate-800 mb-6 flex items-center"><i data-lucide="trending-up" className="w-4 h-4 mr-2 text-cyan-500"></i> Tendencia de Leads</h4>
                                             <div className="chart-container"><canvas id="leadsChart"></canvas></div>
                                         </div>
-                                        <div className="bg-white p-6 md:p-8 rounded-[1.5rem] md:rounded-[2.5rem] border border-slate-100 shadow-sm min-h-[300px]">
-                                            <h4 className="text-sm font-bold text-slate-800 mb-6 flex items-center"><i data-lucide="pie-chart" className="w-4 h-4 mr-2 text-indigo-500"></i> Mix de Servicios</h4>
+                                        <div className="bg-white p-6 md:p-8 rounded-[1.5rem] md:rounded-[2.5rem] border border-slate-100 shadow-sm min-h-[350px]">
+                                            <h4 className="text-sm font-bold text-slate-800 mb-6 flex items-center"><i data-lucide="pie-chart" className="w-4 h-4 mr-2 text-indigo-500"></i> Mix de Soluciones</h4>
                                             <div className="chart-container"><canvas id="serviceChart"></canvas></div>
                                         </div>
                                     </div>
@@ -343,48 +371,53 @@
                                     <div className="flex flex-col sm:flex-row gap-4 justify-between items-center bg-white p-4 md:p-6 rounded-[1.5rem] md:rounded-[2rem] border border-slate-100 shadow-sm">
                                         <div className="relative flex-1 w-full max-w-lg">
                                             <i data-lucide="search" className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
-                                            <input type="text" placeholder="Buscar prospectos..." value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }} className="w-full pl-11 pr-6 py-3 md:py-3.5 bg-slate-50 rounded-2xl border-none outline-none focus:ring-2 focus:ring-cyan-500/20 transition-all text-sm" />
+                                            <input type="text" placeholder="Filtrar prospectos..." value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }} className="w-full pl-11 pr-6 py-3 md:py-3.5 bg-slate-50 rounded-2xl border-none outline-none focus:ring-2 focus:ring-cyan-500/20 transition-all text-sm" />
                                         </div>
-                                        <button className="w-full sm:w-auto bg-slate-900 text-white px-6 py-3 rounded-2xl text-xs font-bold flex items-center justify-center hover:bg-slate-800 shadow-lg"><i data-lucide="download" className="w-4 h-4 mr-2"></i>Reporte CSV</button>
+                                        <button className="w-full sm:w-auto bg-slate-900 text-white px-6 py-3 rounded-2xl text-xs font-bold flex items-center justify-center hover:bg-slate-800 shadow-lg"><i data-lucide="download" className="w-4 h-4 mr-2"></i>Exportar CSV</button>
                                     </div>
 
                                     <div className="bg-white rounded-[1.5rem] md:rounded-[2.5rem] border border-slate-100 overflow-hidden shadow-sm overflow-x-auto custom-scrollbar">
-                                        <table className="w-full text-left min-w-[700px]">
+                                        <table className="w-full text-left min-w-[800px]">
                                             <thead><tr className="bg-slate-50/50 border-b border-slate-100"><th className="p-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Prospecto / Fecha</th><th className="p-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Servicio</th><th className="p-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Inversión</th><th className="p-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Acciones</th></tr></thead>
                                             <tbody className="divide-y divide-slate-100">
                                                 {currentItems.map(q => (
                                                     <tr key={q.id} className="hover:bg-slate-50/50 transition-all group">
-                                                        <td className="p-6"><p className="text-sm font-bold text-slate-800">{q.cliente}</p><p className="text-[10px] text-slate-400 mt-1">{new Date(q.fecha).toLocaleDateString()} • {q.id}</p></td>
+                                                        <td className="p-6">
+                                                            <p className="text-sm font-bold text-slate-800">{q.cliente}</p>
+                                                            <p className="text-[10px] text-slate-400 mt-1">{new Date(q.fecha).toLocaleDateString()} • {q.id.substring(0,12)}...</p>
+                                                        </td>
                                                         <td className="p-6 text-sm text-slate-500">{q.servicio}</td>
                                                         <td className="p-6 text-sm font-black text-right text-slate-900">${q.monto.toLocaleString()}</td>
                                                         <td className="p-6 text-center">
                                                             <div className="flex items-center justify-center space-x-2">
-                                                                <button onClick={() => setSelectedQuote(q)} className="p-2 text-slate-300 hover:text-cyan-600 hover:bg-white rounded-xl transition-all shadow-sm"><i data-lucide="edit-3" className="w-4 h-4"></i></button>
-                                                                <button onClick={() => deleteQuote(q.id)} className="p-2 text-slate-300 hover:text-rose-600 hover:bg-white rounded-xl transition-all shadow-sm"><i data-lucide="trash-2" className="w-4 h-4"></i></button>
+                                                                <button onClick={() => setSelectedQuote(q)} className="p-2 text-slate-300 hover:text-cyan-600 hover:bg-white rounded-xl transition-all shadow-sm" title="Seguimiento"><i data-lucide="edit-3" className="w-4 h-4"></i></button>
+                                                                <button onClick={() => deleteQuote(q.id)} className="p-2 text-slate-300 hover:text-rose-600 hover:bg-white rounded-xl transition-all shadow-sm" title="Eliminar"><i data-lucide="trash-2" className="w-4 h-4"></i></button>
                                                             </div>
                                                         </td>
                                                     </tr>
                                                 ))}
-                                                {currentItems.length === 0 && <tr><td colSpan="4" className="p-10 text-center text-slate-400 italic">No se encontraron resultados</td></tr>}
                                             </tbody>
                                         </table>
-                                        <div className="p-6 border-t border-slate-100 flex flex-col sm:flex-row justify-between items-center bg-slate-50/50 gap-4">
-                                            <p className="text-xs text-slate-400 font-medium">Mostrando página {currentPage} de {totalPages || 1}</p>
+                                        <div className="p-6 border-t border-slate-100 flex flex-col sm:row justify-between items-center bg-slate-50/50 gap-4">
+                                            <p className="text-xs text-slate-400 font-medium tracking-tight">Registro {Math.min((currentPage-1)*itemsPerPage+1, filteredQuotes.length)} - {Math.min(currentPage*itemsPerPage, filteredQuotes.length)} de {filteredQuotes.length}</p>
                                             <div className="flex items-center space-x-2">
-                                                <button onClick={() => setCurrentPage(p => Math.max(1, p-1))} disabled={currentPage === 1} className="p-2 rounded-lg bg-white border border-slate-200 disabled:opacity-30"><i data-lucide="chevron-left" className="w-4 h-4"></i></button>
-                                                <button onClick={() => setCurrentPage(p => Math.min(totalPages, p+1))} disabled={currentPage === totalPages || totalPages === 0} className="p-2 rounded-lg bg-white border border-slate-200 disabled:opacity-30"><i data-lucide="chevron-right" className="w-4 h-4"></i></button>
+                                                <button onClick={() => setCurrentPage(p => Math.max(1, p-1))} disabled={currentPage === 1} className="p-2 rounded-xl bg-white border border-slate-200 disabled:opacity-30 hover:bg-slate-50 transition-colors shadow-sm"><i data-lucide="chevron-left" className="w-4 h-4"></i></button>
+                                                <button onClick={() => setCurrentPage(p => Math.min(totalPages, p+1))} disabled={currentPage === totalPages || totalPages === 0} className="p-2 rounded-xl bg-white border border-slate-200 disabled:opacity-30 hover:bg-slate-50 transition-colors shadow-sm"><i data-lucide="chevron-right" className="w-4 h-4"></i></button>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
                             )}
 
-                            {/* Modal Responsivo de Seguimiento */}
+                            {/* Modal Seguimiento Responsivo */}
                             {selectedQuote && (
                                 <div className="fixed inset-0 z-[60] flex items-center justify-center p-2 sm:p-4 modal-overlay animate-fade-in">
                                     <div className="bg-white w-full max-w-3xl rounded-[1.5rem] sm:rounded-[3rem] shadow-2xl overflow-hidden flex flex-col max-h-[95vh] sm:max-h-[90vh]">
                                         <div className="p-6 sm:p-10 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                                            <div className="min-w-0 flex-1"><h3 className="text-lg sm:text-xl font-black text-slate-900 truncate">Seguimiento</h3><p className="text-[10px] text-cyan-600 font-mono mt-1 uppercase font-bold truncate">EXP: {selectedQuote.id}</p></div>
+                                            <div className="min-w-0 flex-1">
+                                                <h3 className="text-lg sm:text-xl font-black text-slate-900 truncate">Bitácora de Lead</h3>
+                                                <p className="text-[10px] text-cyan-600 font-mono mt-1 uppercase font-bold truncate">UID: {selectedQuote.id}</p>
+                                            </div>
                                             <button onClick={() => { setSelectedQuote(null); setIsEditingQuote(false); }} className="ml-4 p-2 sm:p-3 hover:bg-white rounded-2xl text-slate-400 hover:text-slate-900 transition-all shadow-sm"><i data-lucide="x" className="w-5 sm:w-6 h-5 sm:h-6"></i></button>
                                         </div>
                                         <div className="flex-1 overflow-y-auto p-6 sm:p-10 space-y-6 sm:space-y-8 custom-scrollbar">
@@ -393,25 +426,25 @@
                                                     <p className="text-[10px] font-bold text-slate-400 uppercase mb-2">Entidad Cliente</p>
                                                     <input type="text" value={selectedQuote.cliente} onChange={(e) => setSelectedQuote({...selectedQuote, cliente: e.target.value})} className="bg-transparent border-none p-0 font-black text-slate-800 text-lg w-full focus:ring-0" />
                                                 </div>
-                                                <div className="bg-cyan-50 p-6 rounded-[1.5rem] sm:rounded-[2rem] border border-cyan-100">
-                                                    <p className="text-[10px] font-bold text-cyan-500 uppercase mb-2">Precio Cotizado</p>
+                                                <div className="bg-cyan-50 p-6 rounded-[1.5rem] sm:rounded-[2rem] border border-cyan-100 shadow-inner">
+                                                    <p className="text-[10px] font-bold text-cyan-500 uppercase mb-2">Precio Proyectado</p>
                                                     <p className="text-xl sm:text-2xl font-black text-cyan-700">${selectedQuote.monto.toLocaleString()} <span className="text-xs uppercase">MXN</span></p>
                                                 </div>
                                             </div>
                                             <div className="space-y-4">
-                                                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center"><i data-lucide="message-square" className="w-3 h-3 mr-2"></i> Notas y Anotaciones</h4>
-                                                <textarea className="w-full h-32 sm:h-40 p-5 sm:p-6 bg-slate-50 rounded-[1.5rem] sm:rounded-[2rem] border-none outline-none focus:ring-2 focus:ring-cyan-500/20 text-sm text-slate-600 notes-textarea" placeholder="Acuerdos con el cliente..." value={selectedQuote.anotaciones || ""} onChange={(e) => setSelectedQuote({...selectedQuote, anotaciones: e.target.value})}></textarea>
+                                                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center"><i data-lucide="message-square" className="w-3 h-3 mr-2 text-cyan-500"></i> Seguimiento Interno</h4>
+                                                <textarea className="w-full h-32 sm:h-40 p-5 sm:p-6 bg-slate-50 rounded-[1.5rem] sm:rounded-[2rem] border border-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/20 text-sm text-slate-600 notes-textarea shadow-inner transition-all" placeholder="Agrega anotaciones sobre llamadas, acuerdos o estatus del lead..." value={selectedQuote.anotaciones || ""} onChange={(e) => setSelectedQuote({...selectedQuote, anotaciones: e.target.value})}></textarea>
                                             </div>
                                             <div>
-                                                <h4 className="text-xs font-bold text-slate-400 uppercase mb-4 tracking-widest flex items-center"><i data-lucide="terminal" className="w-3 h-3 mr-2"></i> Datos JSON</h4>
-                                                <div className="bg-slate-900 rounded-[1.5rem] sm:rounded-[2rem] p-6 font-mono text-[10px] text-cyan-400/80 shadow-inner overflow-x-auto"><pre>{JSON.stringify(selectedQuote.entradas_usuario, null, 2)}</pre></div>
+                                                <h4 className="text-xs font-bold text-slate-400 uppercase mb-4 tracking-widest flex items-center"><i data-lucide="terminal" className="w-3 h-3 mr-2 text-indigo-500"></i> Payload JSON</h4>
+                                                <div className="bg-slate-900 rounded-[1.5rem] sm:rounded-[2rem] p-6 font-mono text-[10px] text-cyan-400/80 shadow-2xl overflow-x-auto custom-scrollbar"><pre>{JSON.stringify(selectedQuote.entradas_usuario, null, 2)}</pre></div>
                                             </div>
                                         </div>
                                         <div className="p-6 sm:p-8 border-t border-slate-100 flex flex-col sm:flex-row justify-between bg-slate-50/50 gap-4">
-                                            <button onClick={() => deleteQuote(selectedQuote.id)} className="order-2 sm:order-1 px-4 py-3 text-rose-500 font-bold text-xs uppercase tracking-widest hover:text-rose-700 flex items-center justify-center sm:justify-start"><i data-lucide="trash-2" className="w-4 h-4 mr-2"></i>Borrar Lead</button>
+                                            <button onClick={() => deleteQuote(selectedQuote.id)} className="order-2 sm:order-1 px-4 py-3 text-rose-500 font-bold text-xs uppercase tracking-widest hover:text-rose-700 hover:bg-rose-50 rounded-xl transition-all flex items-center justify-center sm:justify-start"><i data-lucide="trash-2" className="w-4 h-4 mr-2"></i>Borrar Registro</button>
                                             <div className="order-1 sm:order-2 flex space-x-2 sm:space-x-4">
-                                                <button onClick={() => setSelectedQuote(null)} className="flex-1 sm:flex-none px-6 py-3 bg-white text-slate-400 font-bold rounded-2xl text-xs uppercase tracking-widest border border-slate-200 shadow-sm">Cancelar</button>
-                                                <button onClick={saveQuoteNotes} disabled={saving} className="flex-1 sm:flex-none px-8 py-3 bg-slate-900 text-white font-black rounded-2xl text-xs uppercase tracking-widest shadow-xl flex items-center justify-center">
+                                                <button onClick={() => setSelectedQuote(null)} className="flex-1 sm:flex-none px-6 py-3 bg-white text-slate-400 font-bold rounded-2xl text-xs uppercase tracking-widest border border-slate-200 shadow-sm hover:bg-slate-50 transition-all">Cerrar</button>
+                                                <button onClick={saveQuoteNotes} disabled={saving} className="flex-1 sm:flex-none px-8 py-3 bg-slate-900 text-white font-black rounded-2xl text-xs uppercase tracking-widest shadow-xl flex items-center justify-center hover:bg-slate-800 transition-all">
                                                     {saving ? <div className="animate-spin h-4 w-4 border-2 border-white/30 border-t-white rounded-full mr-3"></div> : <i data-lucide="save" className="w-4 h-4 mr-3"></i>}
                                                     Actualizar
                                                 </button>
@@ -421,14 +454,19 @@
                                 </div>
                             )}
 
-                            {/* View Editor de Precios */}
+                            {/* View Editor de Precios Dinámico */}
                             {view === 'editor' && selectedService && (
                                 <div className="animate-fade-in max-w-5xl mx-auto space-y-6 md:space-y-10">
                                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
-                                        <div className="min-w-0 flex-1"><h3 className="text-xl md:text-3xl font-black text-slate-900 tracking-tight truncate">{selectedService.nombre}</h3><p className="text-slate-400 text-xs md:text-sm font-medium mt-1 uppercase tracking-widest font-bold">Motor: {selectedService.regla_calculo ? 'Algoritmo de Proyecto' : 'Matriz Dinámica'}</p></div>
+                                        <div className="min-w-0 flex-1">
+                                            <h3 className="text-xl md:text-3xl font-black text-slate-900 tracking-tight truncate">{selectedService.nombre}</h3>
+                                            <div className="flex items-center space-x-2 mt-2">
+                                                <span className="bg-cyan-50 text-cyan-600 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-widest border border-cyan-100">ID: {selectedService.servicio_id}</span>
+                                            </div>
+                                        </div>
                                         <button onClick={saveChanges} disabled={saving} className="w-full sm:w-auto bg-cyan-500 text-white px-6 md:px-10 py-3 md:py-4 rounded-2xl md:rounded-[1.5rem] font-bold text-sm shadow-xl shadow-cyan-500/20 hover:bg-cyan-400 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center">
                                             {saving ? <div className="animate-spin h-5 w-5 border-2 border-white/30 border-t-white rounded-full mr-3"></div> : <i data-lucide="cloud-lightning" className="w-5 h-5 mr-3"></i>}
-                                            {saving ? "Sincronizando..." : "Publicar Cambios"}
+                                            {saving ? "Publicando..." : "Sincronizar KV"}
                                         </button>
                                     </div>
 
@@ -436,21 +474,21 @@
                                     {selectedService.matriz_precios && (
                                         <div className="grid grid-cols-1 gap-6 md:gap-10">
                                             {['8x5', '7x24'].map(horario => (
-                                                <div key={horario} className="bg-white rounded-[1.5rem] md:rounded-[3rem] p-6 md:p-10 border border-slate-100 shadow-sm">
-                                                    <h4 className="text-xs md:text-sm font-black text-slate-800 uppercase mb-6 md:mb-10 flex items-center tracking-widest"><i data-lucide="clock" className="w-4 h-4 mr-3 text-cyan-500"></i>Esquema {horario}</h4>
-                                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-8">
+                                                <div key={horario} className="bg-white rounded-[1.5rem] md:rounded-[3rem] p-6 md:p-10 border border-slate-100 shadow-sm relative overflow-hidden">
+                                                    <h4 className="text-xs md:text-sm font-black text-slate-800 uppercase mb-6 md:mb-10 flex items-center tracking-widest relative z-10"><i data-lucide="clock" className="w-4 h-4 mr-3 text-cyan-500"></i>Modalidad: {horario}</h4>
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-8 relative z-10">
                                                         {['bajo', 'medio', 'alto'].map(volumen => {
                                                             const key = `${horario}_${volumen}`;
                                                             const item = selectedService.matriz_precios[key];
                                                             if (!item) return null;
                                                             return (
-                                                                <div key={volumen} className="bg-slate-50/50 rounded-[1.2rem] md:rounded-[2rem] p-6 border border-slate-100 hover:bg-white transition-all group">
-                                                                    <label className="text-[10px] font-bold text-slate-400 uppercase block mb-4 tracking-widest">Nivel {volumen}</label>
+                                                                <div key={volumen} className="bg-slate-50/50 rounded-[1.2rem] md:rounded-[2rem] p-6 border border-slate-100 hover:bg-white transition-all group shadow-sm hover:shadow-xl hover:shadow-cyan-500/5">
+                                                                    <label className="text-[10px] font-bold text-slate-400 uppercase block mb-4 tracking-widest text-center">Nivel {volumen}</label>
                                                                     <div className="relative">
                                                                         <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 font-bold text-xl">$</span>
-                                                                        <input type="number" value={item.precio?.monto || 0} onChange={(e) => handlePriceUpdate(key, e.target.value)} className="w-full pl-10 pr-4 py-3 bg-white rounded-xl border-none outline-none text-xl font-black text-slate-800 shadow-inner group-hover:bg-slate-50 transition-colors" />
+                                                                        <input type="number" value={item.precio?.monto || 0} onChange={(e) => handlePriceUpdate(key, e.target.value)} className="w-full pl-10 pr-4 py-3 bg-white rounded-xl border-2 border-transparent focus:border-cyan-500 outline-none text-xl font-black text-slate-800 shadow-inner group-hover:bg-slate-50 transition-all text-center sm:text-left" />
                                                                     </div>
-                                                                    <p className="text-[9px] text-slate-400 mt-4 font-bold italic">{item.precio?.unidad}</p>
+                                                                    <p className="text-[9px] text-slate-400 mt-4 text-center font-bold italic tracking-wider uppercase">{item.precio?.unidad}</p>
                                                                 </div>
                                                             );
                                                         })}
@@ -460,21 +498,24 @@
                                         </div>
                                     )}
 
-                                    {/* MODO PROYECTO (PENTESTING) */}
+                                    {/* MODO PROYECTO PENTESTING - FIJADO */}
                                     {selectedService.regla_calculo && (
-                                        <div className="bg-white rounded-[1.5rem] md:rounded-[3rem] p-6 md:p-10 border border-slate-100 shadow-sm space-y-8 md:space-y-10">
-                                            <h4 className="text-xs md:text-sm font-black text-slate-800 uppercase flex items-center tracking-widest"><i data-lucide="cpu" className="w-4 h-4 mr-3 text-cyan-500"></i>Parámetros del Algoritmo</h4>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-10">
+                                        <div className="bg-white rounded-[1.5rem] md:rounded-[3rem] p-6 md:p-10 border border-slate-100 shadow-sm space-y-8 md:space-y-10 relative overflow-hidden">
+                                            <h4 className="text-xs md:text-sm font-black text-slate-800 uppercase flex items-center tracking-widest relative z-10"><i data-lucide="cpu" className="w-4 h-4 mr-3 text-cyan-500"></i>Configuración de Algoritmo</h4>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-10 relative z-10">
                                                 <div className="space-y-4">
-                                                    <label className="text-[10px] font-bold text-slate-400 uppercase block tracking-widest">Fórmula de Cálculo (Días)</label>
-                                                    <input type="text" value={selectedService.regla_calculo} onChange={(e) => handleProjectRuleUpdate('regla_calculo', e.target.value)} className="w-full px-6 py-4 bg-slate-50 rounded-2xl border-none outline-none text-lg font-black text-slate-800 shadow-inner focus:bg-white transition-all" />
-                                                    <p className="text-[10px] text-slate-400 italic">{selectedService.explicacion_regla}</p>
+                                                    <label className="text-[10px] font-bold text-slate-400 uppercase block tracking-widest">Fórmula de Días</label>
+                                                    <input type="text" value={selectedService.regla_calculo} onChange={(e) => handleProjectRuleUpdate('regla_calculo', e.target.value)} className="w-full px-6 py-4 bg-slate-50 rounded-2xl border-2 border-transparent focus:border-cyan-500 outline-none text-lg font-black text-slate-800 shadow-inner focus:bg-white transition-all shadow-sm" />
+                                                    <p className="text-[10px] text-slate-400 italic font-medium px-2 leading-relaxed">{selectedService.explicacion_regla}</p>
                                                 </div>
                                                 <div className="space-y-4">
                                                     <label className="text-[10px] font-bold text-slate-400 uppercase block tracking-widest">Costo Diario Senior (MXN)</label>
                                                     <div className="relative">
                                                         <span className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300 font-bold text-xl">$</span>
-                                                        <input type="number" value={selectedService.costos_recursos?.ingeniero_senior?.costo_diario || 0} onChange={(e) => handleProjectRuleUpdate('costo_diario', e.target.value)} className="w-full pl-12 pr-6 py-4 bg-slate-50 rounded-2xl border-none outline-none text-lg font-black text-slate-800 shadow-inner focus:bg-white transition-all" />
+                                                        <input type="number" value={selectedService.costos_recursos?.ingeniero_senior?.costo_diario || 0} onChange={(e) => handleProjectRuleUpdate('costo_diario', e.target.value)} className="w-full pl-12 pr-6 py-4 bg-slate-50 rounded-2xl border-2 border-transparent focus:border-cyan-500 outline-none text-lg font-black text-slate-800 shadow-inner focus:bg-white transition-all shadow-sm" />
+                                                    </div>
+                                                    <div className="bg-indigo-50 border border-indigo-100 p-3 rounded-xl">
+                                                        <p className="text-[10px] text-indigo-700 font-bold uppercase tracking-tighter">Multiplicador por Retesting: x{selectedService.retesting?.multiplicador || 2}</p>
                                                     </div>
                                                 </div>
                                             </div>
@@ -485,12 +526,21 @@
                                     {selectedService.planes && (
                                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-8">
                                             {Object.keys(selectedService.planes).map(pId => (
-                                                <div key={pId} className="bg-white rounded-[1.5rem] md:rounded-[2.5rem] p-6 md:p-8 border border-slate-100 shadow-sm hover:border-cyan-200 transition-colors group">
-                                                    <span className="text-[9px] font-bold text-cyan-600 bg-cyan-50 px-3 py-1 rounded-full uppercase tracking-widest w-fit mb-4 block">{pId}</span>
+                                                <div key={pId} className="bg-white rounded-[1.5rem] md:rounded-[2.5rem] p-6 md:p-8 border border-slate-100 shadow-sm hover:border-cyan-200 transition-all group relative overflow-hidden flex flex-col min-h-[250px]">
+                                                    <span className="text-[9px] font-bold text-cyan-600 bg-cyan-50 px-3 py-1.5 rounded-full uppercase tracking-widest w-fit mb-6 block border border-cyan-100">{pId}</span>
                                                     <h4 className="text-lg font-black text-slate-800 mb-6 leading-tight truncate">{selectedService.planes[pId].nombre}</h4>
-                                                    <div className="relative">
-                                                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 font-bold text-xl">$</span>
-                                                        <input type="number" value={selectedService.planes[pId].precio_mensual || 0} onChange={(e) => handlePriceUpdate(pId, e.target.value)} className="w-full pl-10 pr-4 py-4 bg-slate-50 rounded-2xl border-none outline-none text-2xl font-black text-slate-800 shadow-inner group-hover:bg-white transition-all" />
+                                                    <div className="flex-1 space-y-4 mb-6">
+                                                        <div className="bg-slate-50 p-4 rounded-2xl">
+                                                            <label className="text-[9px] font-bold text-slate-400 uppercase block mb-1">Precio Mensual</label>
+                                                            <div className="relative">
+                                                                <span className="absolute left-0 top-1/2 -translate-y-1/2 text-slate-300 font-bold text-xl">$</span>
+                                                                <input type="number" value={selectedService.planes[pId].precio_mensual || 0} onChange={(e) => handlePriceUpdate(pId, e.target.value)} className="w-full pl-6 bg-transparent border-none outline-none text-2xl font-black text-slate-800 focus:ring-0" />
+                                                            </div>
+                                                        </div>
+                                                        <div className="grid grid-cols-2 gap-3 text-center">
+                                                            <div className="bg-slate-50/50 p-2 rounded-xl border border-slate-100"><p className="text-[8px] font-bold text-slate-400 uppercase">Espacio</p><p className="text-[10px] font-bold text-slate-700">{selectedService.planes[pId].almacenamiento}</p></div>
+                                                            <div className="bg-slate-50/50 p-2 rounded-xl border border-slate-100"><p className="text-[8px] font-bold text-slate-400 uppercase">Meet</p><p className="text-[10px] font-bold text-slate-700">{selectedService.planes[pId].participantes_meet} pax</p></div>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             ))}
