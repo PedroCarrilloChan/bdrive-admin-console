@@ -58,6 +58,13 @@
 
         .chart-container { position: relative; height: 260px; width: 100%; }
         .notes-textarea { resize: none; scrollbar-width: thin; transition: all 0.3s ease; }
+        
+        /* Estilo para asegurar visibilidad de iconos Lucide */
+        [data-lucide] {
+            display: inline-block;
+            stroke-width: 2.5;
+            color: currentColor;
+        }
     </style>
 </head>
 <body>
@@ -94,13 +101,15 @@
 
             useEffect(() => { fetchInitialData(); }, []);
 
-            // FIX: Añadidas dependencias de paginación y búsqueda para regenerar iconos
+            // FIX DE ICONOS: Se asegura de llamar a lucide.createIcons() después de cada cambio de DOM
             useEffect(() => {
                 if (!loading) {
                     const timer = setTimeout(() => {
-                        if (window.lucide) window.lucide.createIcons();
+                        if (window.lucide) {
+                            window.lucide.createIcons();
+                        }
                         if (view === 'dashboard' && quotes.length > 0) renderCharts();
-                    }, 150);
+                    }, 100); // Pequeño delay para asegurar que React terminó el render
                     return () => clearTimeout(timer);
                 }
             }, [view, services, selectedService, loading, quotes, currentPage, searchQuery, selectedQuote]);
@@ -164,15 +173,19 @@
                 const updated = JSON.parse(JSON.stringify(selectedService));
                 const val = parseFloat(value) || 0;
                 
+                // Matriz NOC/SOC
                 if (updated.matriz_precios?.[matrixKey]?.precio) {
                     updated.matriz_precios[matrixKey].precio.monto = val;
                 } 
+                // Planes Workspace
                 else if (updated.planes?.[matrixKey]) {
                     updated.planes[matrixKey].precio_mensual = val;
                 }
+                // Contact Center
                 else if (updated.precios_por_agente_mes_mxn?.[matrixKey]) {
                     updated.precios_por_agente_mes_mxn[matrixKey].precio = val;
                 }
+                // Nube GCP
                 else if (updated.tipos_instancia?.[matrixKey]) {
                     updated.tipos_instancia[matrixKey][subKey] = val;
                 }
@@ -187,13 +200,6 @@
                     updated.costos_recursos.ingeniero_senior.costo_diario = parseFloat(value) || 0;
                 }
                 setSelectedService(updated);
-            };
-
-            const handleRawJsonUpdate = (value) => {
-                try {
-                    const parsed = JSON.parse(value);
-                    setSelectedService(parsed);
-                } catch(e) { }
             };
 
             const deleteLead = async (id) => {
@@ -217,7 +223,7 @@
                         body: JSON.stringify(selectedService) 
                     });
                     if (res.ok) {
-                        setMessage({ text: "Sincronización KV Exitosa - El Chatbot ya está actualizado", type: "success" });
+                        setMessage({ text: "Sincronización Exitosa - El Chatbot ha sido actualizado", type: "success" });
                         setServices(services.map(s => s.servicio_id === selectedService.servicio_id ? selectedService : s));
                     }
                 } catch (err) { setMessage({ text: "Error de sincronización", type: "error" }); }
@@ -253,7 +259,7 @@
                 if (s?.categoria === 'seguridad' || id.includes('pentesting')) return 'shield';
                 if (id.includes('correo') || id.includes('google')) return 'mail';
                 if (id.includes('nube') || id.includes('gcp')) return 'cloud';
-                if (id.includes('contact') || id.includes('center')) return 'headphones';
+                if (id.includes('contact')) return 'headphones';
                 return 'package';
             };
 
@@ -263,7 +269,7 @@
                 if (s.regla_calculo) return "Algoritmo de Proyecto";
                 if (s.planes) return "Suscripción por Planes";
                 if (s.precios_por_agente_mes_mxn) return "Tarifario por Agentes";
-                if (s.tipos_instancia) return "Recursos de Infraestructura Nube";
+                if (s.tipos_instancia) return "Instancias Nube";
                 return "Estructura Personalizada";
             };
 
@@ -324,12 +330,12 @@
                             <div className="flex items-center space-x-4">
                                 <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden p-2.5 text-slate-600 bg-white rounded-xl shadow-sm border border-slate-200"><i data-lucide="menu" className="w-6 h-6"></i></button>
                                 <h2 className="text-sm md:text-lg font-bold text-slate-800 truncate uppercase tracking-[0.1em] font-black">
-                                    {view === 'quotes' ? 'Historial Leads' : view === 'dashboard' ? 'Performance Global' : cleanServiceName(selectedService?.nombre)}
+                                    {view === 'quotes' ? 'Gestión de Leads' : view === 'dashboard' ? 'Performance Global' : cleanServiceName(selectedService?.nombre)}
                                 </h2>
                             </div>
                             <div className="flex items-center space-x-2 md:space-x-5">
                                 <button onClick={fetchInitialData} className="p-2.5 text-slate-400 hover:text-cyan-600 bg-white rounded-xl shadow-sm border border-slate-100 hover:border-cyan-200 active:rotate-180 transition-all"><i data-lucide="refresh-cw" className="w-4 md:w-5 h-4 md:h-5"></i></button>
-                                <div className="h-10 w-10 rounded-2xl bg-slate-900 text-white flex items-center justify-center font-black shadow-xl border-2 border-slate-800">B</div>
+                                <div className="h-10 w-10 rounded-xl bg-slate-900 text-white flex items-center justify-center font-black shadow-xl border-2 border-slate-800">B</div>
                             </div>
                         </header>
 
@@ -347,7 +353,7 @@
                                             { t: "Ingresos Proyectados", v: `$${Number(stats.total).toLocaleString()}`, c: "text-cyan-600" },
                                             { t: "Leads Totales", v: stats.count, c: "text-slate-800" },
                                             { t: "Ticket Promedio", v: `$${Number(stats.avg).toLocaleString()}`, c: "text-indigo-600" },
-                                            { t: "Estado Worker", v: "ONLINE", c: "text-emerald-500" }
+                                            { t: "Disponibilidad", v: "100%", c: "text-emerald-500" }
                                         ].map((card, i) => (
                                             <div key={i} className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm transition-all hover:shadow-xl hover:shadow-cyan-500/5 hover:-translate-y-1">
                                                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2">{card.t}</p>
@@ -357,11 +363,11 @@
                                     </div>
                                     <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
                                         <div className="bg-white p-7 md:p-10 rounded-[3rem] border border-slate-100 shadow-sm min-h-[400px]">
-                                            <h4 className="text-sm font-black text-slate-800 mb-10 flex items-center uppercase tracking-widest"><i data-lucide="trending-up" className="w-5 h-5 mr-3 text-cyan-500"></i> Tendencia Semanal</h4>
+                                            <h4 className="text-sm font-black text-slate-800 mb-10 flex items-center uppercase tracking-widest"><i data-lucide="trending-up" className="w-5 h-5 mr-3 text-cyan-500"></i> Tendencia de Cierre</h4>
                                             <div className="chart-container"><canvas id="leadsChart"></canvas></div>
                                         </div>
                                         <div className="bg-white p-7 md:p-10 rounded-[3rem] border border-slate-100 shadow-sm min-h-[400px]">
-                                            <h4 className="text-sm font-black text-slate-800 mb-10 flex items-center uppercase tracking-widest"><i data-lucide="pie-chart" className="w-5 h-5 mr-3 text-indigo-500"></i> Mix de Soluciones</h4>
+                                            <h4 className="text-sm font-black text-slate-800 mb-10 flex items-center uppercase tracking-widest"><i data-lucide="pie-chart" className="w-5 h-5 mr-3 text-indigo-500"></i> Distribución de Leads</h4>
                                             <div className="chart-container"><canvas id="serviceChart"></canvas></div>
                                         </div>
                                     </div>
@@ -386,9 +392,12 @@
                                                         <td className="p-7"><p className="text-sm font-extrabold text-slate-800 tracking-tight">{q.cliente}</p><p className="text-[10px] text-slate-400 mt-1 font-mono uppercase tracking-tighter">{q.id.substring(0,18)}...</p></td>
                                                         <td className="p-7 text-sm font-semibold text-slate-500">{cleanServiceName(q.servicio)}</td>
                                                         <td className="p-7 text-sm font-black text-right">${(q.monto || 0).toLocaleString()} <span className="text-[9px] opacity-40 ml-1 uppercase">MXN</span></td>
-                                                        <td className="p-7 text-center space-x-2">
-                                                            <button onClick={() => setSelectedQuote(q)} className="p-2.5 text-slate-300 hover:text-cyan-600 hover:bg-white border border-transparent hover:border-cyan-100 rounded-xl transition-all shadow-sm"><i data-lucide="edit-3" className="w-4 h-4"></i></button>
-                                                            <button onClick={() => deleteLead(q.id)} className="p-2.5 text-slate-300 hover:text-rose-600 hover:bg-white border border-transparent hover:border-rose-100 rounded-xl transition-all shadow-sm"><i data-lucide="trash-2" className="w-4 h-4"></i></button>
+                                                        <td className="p-7 text-center">
+                                                            <div className="flex items-center justify-center space-x-3">
+                                                                {/* Iconos persistentes mediante useEffect dependiente de currentPage */}
+                                                                <button onClick={() => setSelectedQuote(q)} className="p-2.5 text-slate-300 hover:text-cyan-600 hover:bg-white border border-transparent hover:border-cyan-100 rounded-xl transition-all shadow-sm"><i data-lucide="edit-3" className="w-4 h-4"></i></button>
+                                                                <button onClick={() => deleteLead(q.id)} className="p-2.5 text-slate-300 hover:text-rose-600 hover:bg-white border border-transparent hover:border-rose-100 rounded-xl transition-all shadow-sm"><i data-lucide="trash-2" className="w-4 h-4"></i></button>
+                                                            </div>
                                                         </td>
                                                     </tr>
                                                 ))}
@@ -412,13 +421,13 @@
                                             <div className="min-w-0 flex-1"><h3 className="text-xl md:text-2xl font-black text-slate-900 truncate tracking-tight">Expediente de Lead</h3><p className="text-[10px] text-cyan-600 font-black mt-2 uppercase tracking-[0.25em] truncate">REF: {selectedQuote.id}</p></div>
                                             <button onClick={() => setSelectedQuote(null)} className="ml-6 p-3 hover:bg-white rounded-[1.5rem] text-slate-400 hover:text-slate-900 transition-all border border-transparent hover:border-slate-200"><i data-lucide="x" className="w-6 h-6"></i></button>
                                         </div>
-                                        <div className="flex-1 overflow-y-auto p-8 md:p-12 space-y-10 custom-scrollbar text-left text-left">
+                                        <div className="flex-1 overflow-y-auto p-8 md:p-12 space-y-10 custom-scrollbar text-left">
                                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 md:gap-10">
-                                                <div className="bg-slate-50 p-8 rounded-[2.5rem] border border-slate-100">
+                                                <div className="bg-slate-50 p-8 rounded-[2.5rem] border border-slate-100 shadow-inner">
                                                     <p className="text-[10px] font-black text-slate-400 uppercase mb-3 tracking-[0.15em]">Entidad Comercial</p>
                                                     <input type="text" value={selectedQuote.cliente || ""} onChange={(e) => setSelectedQuote({...selectedQuote, cliente: e.target.value})} className="bg-transparent border-none p-0 font-black text-slate-800 text-xl w-full focus:ring-0" placeholder="Nombre..." />
                                                 </div>
-                                                <div className="bg-cyan-50 p-8 rounded-[2.5rem] border border-cyan-100 shadow-inner">
+                                                <div className="bg-cyan-50 p-8 rounded-[2.5rem] border border-cyan-100">
                                                     <p className="text-[10px] font-black text-cyan-500 uppercase mb-3 tracking-[0.15em]">Valor Estimado</p>
                                                     <p className="text-2xl md:text-3xl font-black text-cyan-700 tracking-tight">${(selectedQuote.monto || 0).toLocaleString()} <span className="text-xs">MXN</span></p>
                                                 </div>
@@ -429,7 +438,7 @@
                                             </div>
                                             <div>
                                                 <h4 className="text-[10px] font-black text-slate-400 uppercase mb-5 tracking-widest flex items-center px-2"><i data-lucide="terminal" className="w-3.5 h-3.5 mr-3 text-indigo-500"></i> Datos Técnicos Capturados</h4>
-                                                <div className="bg-slate-900 rounded-[2.5rem] p-8 font-mono text-[10px] text-cyan-400/80 shadow-2xl overflow-x-auto leading-loose border-2 border-slate-800/50"><pre>{JSON.stringify(selectedQuote.entradas_usuario, null, 2)}</pre></div>
+                                                <div className="bg-slate-900 rounded-[2.5rem] p-8 font-mono text-[10px] text-cyan-400/80 shadow-2xl overflow-x-auto leading-loose border-2 border-slate-800/50"><pre>{JSON.stringify(selectedQuote.entradas_usuario || selectedQuote.detalles_tecnicos, null, 2)}</pre></div>
                                             </div>
                                         </div>
                                         <div className="p-8 md:p-12 border-t border-slate-100 flex flex-col sm:flex-row justify-between bg-slate-50/50 gap-6">
@@ -456,7 +465,7 @@
                                         <button onClick={saveChanges} disabled={saving} className="w-full sm:w-auto bg-cyan-500 text-white px-10 md:px-14 py-4 md:py-5 rounded-[2rem] font-black text-xs uppercase tracking-[0.2em] shadow-2xl shadow-cyan-500/30 hover:bg-cyan-400 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center">{saving ? <div className="animate-spin h-4 w-4 border-2 border-white/30 border-t-white rounded-full mr-3"></div> : <i data-lucide="cloud-lightning" className="w-5 h-5 mr-4"></i>}Sincronizar KV</button>
                                     </div>
 
-                                    {/* MODO MATRIZ (NOC/SOC/CONTACT CENTER) */}
+                                    {/* MODO MATRIZ (NOC/SOC) */}
                                     {selectedService.matriz_precios && (
                                         <div className="grid grid-cols-1 gap-8 md:gap-12">
                                             {['8x5', '7x24'].map(horario => (
@@ -470,7 +479,7 @@
                                                             if (!item) return null;
                                                             return (
                                                                 <div key={volumen} className="bg-slate-50/60 rounded-[2rem] md:rounded-[2.5rem] p-8 md:p-10 border border-slate-100 hover:bg-white transition-all group shadow-sm hover:shadow-2xl hover:shadow-cyan-500/10 text-center">
-                                                                    <label className="text-[9px] font-black text-slate-400 uppercase block mb-6 tracking-widest uppercase font-black">Carga {volumen}</label>
+                                                                    <label className="text-[9px] font-black text-slate-400 uppercase block mb-6 tracking-widest font-black uppercase tracking-widest">Carga {volumen}</label>
                                                                     <div className="relative">
                                                                         <span className="absolute left-0 top-1/2 -translate-y-1/2 text-slate-300 font-black text-2xl">$</span>
                                                                         <input type="number" value={item.precio?.monto || 0} onChange={(e) => handlePriceUpdate(key, e.target.value)} className="w-full pl-8 pr-4 bg-transparent border-none outline-none text-2xl md:text-3xl font-black text-slate-800 text-center focus:ring-0 transition-all" />
@@ -489,7 +498,7 @@
                                     {selectedService.regla_calculo && (
                                         <div className="bg-white rounded-[3rem] md:rounded-[4rem] p-8 md:p-12 border border-slate-100 shadow-sm space-y-10 md:space-y-14 relative overflow-hidden">
                                             <div className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none"><i data-lucide="cpu" className="w-40 h-40 text-cyan-500"></i></div>
-                                            <h4 className="text-[11px] font-black text-slate-900 uppercase flex items-center tracking-[0.3em] relative z-10"><i data-lucide="cpu" className="w-6 h-6 mr-4 text-cyan-500"></i>Parámetros del Algoritmo Pro</h4>
+                                            <h4 className="text-[11px] font-black text-slate-900 uppercase flex items-center tracking-[0.3em] relative z-10 font-bold"><i data-lucide="cpu" className="w-6 h-6 mr-4 text-cyan-500"></i>Configuración de Algoritmo Pro</h4>
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-14 relative z-10">
                                                 <div className="space-y-6">
                                                     <label className="text-[10px] font-black text-slate-400 uppercase block tracking-[0.2em]">Fórmula Operativa (Días base + extra)</label>
@@ -502,6 +511,10 @@
                                                         <span className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300 font-black text-2xl">$</span>
                                                         <input type="number" value={selectedService.costos_recursos?.ingeniero_senior?.costo_diario || 0} onChange={(e) => handleProjectRuleUpdate('costo_diario', e.target.value)} className="w-full pl-14 pr-8 py-5 md:py-6 bg-slate-50 rounded-[2rem] border-2 border-transparent focus:border-cyan-500/20 outline-none text-xl md:text-2xl font-black text-slate-800 shadow-inner focus:bg-white transition-all shadow-sm" />
                                                     </div>
+                                                    <div className="bg-indigo-50 border border-indigo-100 p-5 rounded-2xl flex items-center justify-between">
+                                                        <span className="text-[10px] text-indigo-700 font-black uppercase tracking-widest">Multiplicador Retesting</span>
+                                                        <span className="text-lg font-black text-indigo-800">x{selectedService.retesting?.multiplicador || 2}</span>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
@@ -510,13 +523,13 @@
                                     {/* MODO CONTACT CENTER */}
                                     {selectedService.precios_por_agente_mes_mxn && (
                                         <div className="grid grid-cols-1 gap-8 md:gap-12">
-                                            <div className="bg-white rounded-[3rem] md:rounded-[4rem] p-8 md:p-12 border border-slate-100 shadow-sm relative overflow-hidden">
+                                            <div className="bg-white rounded-[3rem] md:rounded-[4rem] p-8 md:p-12 border border-slate-100 shadow-sm relative overflow-hidden text-center">
                                                 <div className="absolute -top-10 -right-10 opacity-5 pointer-events-none"><i data-lucide="headphones" className="w-48 h-48"></i></div>
                                                 <h4 className="text-[11px] font-black text-slate-900 uppercase mb-10 md:mb-14 flex items-center tracking-[0.3em] relative z-10 font-bold"><i data-lucide="headphones" className="w-6 h-6 mr-4 text-cyan-500"></i>Tarifario por Licenciamiento (Agentes)</h4>
                                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-10 relative z-10">
                                                     {Object.keys(selectedService.precios_por_agente_mes_mxn).map(key => (
-                                                        <div key={key} className="bg-slate-50/60 rounded-[2rem] p-8 md:p-10 border border-slate-100 hover:bg-white transition-all text-center">
-                                                            <label className="text-[9px] font-black text-slate-400 uppercase block mb-6 tracking-widest font-black uppercase">NIVEL {key.toUpperCase()}</label>
+                                                        <div key={key} className="bg-slate-50/60 rounded-[2rem] p-8 md:p-10 border border-slate-100 hover:bg-white transition-all">
+                                                            <label className="text-[9px] font-black text-slate-400 uppercase block mb-6 tracking-widest font-black uppercase tracking-widest">NIVEL {key.toUpperCase()}</label>
                                                             <div className="relative">
                                                                 <span className="absolute left-0 top-1/2 -translate-y-1/2 text-slate-300 font-black text-2xl">$</span>
                                                                 <input type="number" value={selectedService.precios_por_agente_mes_mxn[key].precio || 0} onChange={(e) => handlePriceUpdate(key, e.target.value)} className="w-full pl-8 pr-4 bg-transparent border-none outline-none text-2xl md:text-3xl font-black text-slate-800 text-center focus:ring-0 transition-all" />
@@ -535,10 +548,10 @@
                                             <div className="bg-white rounded-[3rem] md:rounded-[4rem] p-8 md:p-12 border border-slate-100 shadow-sm relative overflow-hidden">
                                                 <div className="absolute -top-10 -right-10 opacity-5 pointer-events-none"><i data-lucide="cloud" className="w-48 h-48"></i></div>
                                                 <h4 className="text-[11px] font-black text-slate-900 uppercase mb-10 md:mb-14 flex items-center tracking-[0.3em] relative z-10 font-bold"><i data-lucide="cloud" className="w-6 h-6 mr-4 text-cyan-500"></i>Configuración de Instancias Compute Engine</h4>
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-10 relative z-10 text-left">
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-10 relative z-10">
                                                     {Object.keys(selectedService.tipos_instancia).map(key => (
                                                         <div key={key} className="bg-slate-50/60 rounded-[2rem] p-8 md:p-10 border border-slate-100 hover:bg-white transition-all shadow-sm">
-                                                            <label className="text-[10px] font-black text-slate-400 uppercase block mb-6 tracking-widest text-center font-black">{selectedService.tipos_instancia[key].nombre}</label>
+                                                            <label className="text-[9px] font-black text-slate-400 uppercase block mb-6 tracking-widest text-center font-black">{selectedService.tipos_instancia[key].nombre}</label>
                                                             <div className="space-y-4">
                                                                 <div className="bg-white p-4 rounded-2xl shadow-inner">
                                                                     <p className="text-[8px] font-black text-slate-400 uppercase mb-1">vCPUs Disponibles</p>
@@ -561,7 +574,7 @@
                                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-10">
                                             {Object.keys(selectedService.planes).map(pId => (
                                                 <div key={pId} className="bg-white rounded-[2.5rem] md:rounded-[3.5rem] p-8 md:p-10 border border-slate-100 shadow-sm hover:border-cyan-200 transition-all group flex flex-col min-h-[350px] relative overflow-hidden">
-                                                    <span className="text-[9px] font-black text-cyan-600 bg-cyan-50 px-4 py-2 rounded-full uppercase tracking-widest w-fit mb-8 border border-cyan-100 relative z-10 font-black">{pId}</span>
+                                                    <span className="text-[9px] font-black text-cyan-600 bg-cyan-50 px-4 py-2 rounded-full uppercase tracking-widest w-fit mb-8 border border-cyan-100 relative z-10 font-black tracking-widest uppercase">{pId}</span>
                                                     <h4 className="text-xl md:text-2xl font-black text-slate-800 mb-10 leading-tight tracking-tight relative z-10 truncate">{selectedService.planes[pId].nombre}</h4>
                                                     <div className="flex-1 space-y-8 relative z-10">
                                                         <div className="bg-slate-50 p-6 md:p-8 rounded-[2.5rem] shadow-inner transition-colors group-hover:bg-slate-50/40">
@@ -584,7 +597,18 @@
                                     {/* FALLBACK: JSON CRUDO */}
                                     {!selectedService.matriz_precios && !selectedService.regla_calculo && !selectedService.planes && !selectedService.precios_por_agente_mes_mxn && !selectedService.tipos_instancia && (
                                         <div className="bg-white rounded-[3rem] p-10 border border-slate-100 shadow-sm space-y-6">
-                                            <textarea className="w-full h-[450px] p-10 bg-slate-900 text-cyan-400 font-mono text-[11px] rounded-[3rem] border-none outline-none focus:ring-8 focus:ring-cyan-500/5 shadow-2xl" value={JSON.stringify(selectedService, null, 2)} onChange={(e) => handleRawJsonUpdate(e.target.value)}></textarea>
+                                            <div className="bg-amber-50 border border-amber-200 p-6 rounded-[2rem] flex items-start space-x-4 shadow-sm">
+                                                <i data-lucide="alert-circle" className="text-amber-500 w-6 h-6 shrink-0 mt-1"></i>
+                                                <div>
+                                                    <h5 className="font-black text-amber-900 uppercase text-xs tracking-widest leading-none font-black">Estructura Nueva Detectada</h5>
+                                                    <p className="text-amber-700 text-xs mt-2 leading-relaxed opacity-80 font-medium">Puedes editar el JSON crudo directamente. Los cambios se sincronizarán con Cloudflare Edge de forma segura.</p>
+                                                </div>
+                                            </div>
+                                            <textarea 
+                                                className="w-full h-[450px] p-10 bg-slate-900 text-cyan-400 font-mono text-[11px] rounded-[3rem] border-none outline-none focus:ring-8 focus:ring-cyan-500/5 custom-scrollbar leading-loose shadow-2xl"
+                                                value={JSON.stringify(selectedService, null, 2)}
+                                                onChange={(e) => handleRawJsonUpdate(e.target.value)}
+                                            ></textarea>
                                         </div>
                                     )}
                                 </div>
