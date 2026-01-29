@@ -133,8 +133,8 @@
                         fetch(`${API_BASE_URL}/api/services`),
                         fetch(`${API_BASE_URL}/api/config/global`)
                     ]);
-                    if (qRes.ok) setQuotes(await qRes.json());
-                    if (sRes.ok) setServices(await sRes.json());
+                    if (qRes.ok) setQuotes(await qRes.json()); else setQuotes([]);
+                    if (sRes.ok) setServices(await sRes.json()); else setServices([]);
                     if (gRes.ok) {
                         setGlobalConfig(await gRes.json());
                     } else {
@@ -660,8 +660,6 @@
                             {/* EDITOR VIEW - CON TODAS LAS MEJORAS */}
                             {view === 'editor' && selectedService && (
                                 <div className="animate-fade-in max-w-5xl mx-auto space-y-8 md:space-y-12 pb-20 text-left">
-                                    {{view === 'editor' && selectedService && (
-    <div className="animate-fade-in max-w-5xl mx-auto space-y-8 md:space-y-12 pb-20 text-left">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-8">
             <div className="min-w-0 flex-1">
                 <h3 className="text-2xl md:text-4xl font-black text-slate-900 tracking-tighter leading-tight">{cleanServiceName(selectedService.nombre)}</h3>
@@ -1182,14 +1180,12 @@
                         try {
                             const parsed = JSON.parse(e.target.value);
                             setSelectedService(parsed);
-                        } catch(err) {}
+                        } catch(err) { setMessage({ text: "JSON inválido: " + err.message, type: "error" }); setTimeout(() => setMessage(null), 3000); }
                     }}
                 ></textarea>
             </div>
         )}
     </div>
-)}}
-                                    {/* Por límites de espacio, te lo envío en el siguiente mensaje */}
                                 </div>
                             )}
 
