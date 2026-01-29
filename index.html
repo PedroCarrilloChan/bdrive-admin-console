@@ -660,536 +660,531 @@
                             {/* EDITOR VIEW - CON TODAS LAS MEJORAS */}
                             {view === 'editor' && selectedService && (
                                 <div className="animate-fade-in max-w-5xl mx-auto space-y-8 md:space-y-12 pb-20 text-left">
-                                    {{view === 'editor' && selectedService && (
-    <div className="animate-fade-in max-w-5xl mx-auto space-y-8 md:space-y-12 pb-20 text-left">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-8">
-            <div className="min-w-0 flex-1">
-                <h3 className="text-2xl md:text-4xl font-black text-slate-900 tracking-tighter leading-tight">{cleanServiceName(selectedService.nombre)}</h3>
-                <div className="flex flex-wrap gap-3 mt-4">
-                    <span className="bg-cyan-50 text-cyan-600 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-[0.1em] border border-cyan-100">ID: {selectedService.servicio_id}</span>
-                    <span className="bg-slate-100 text-slate-500 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-[0.1em] border border-slate-200">Motor: {getMotorName(selectedService)}</span>
-                </div>
-            </div>
-            <button onClick={saveChanges} disabled={saving || Object.keys(validationErrors).length > 0} className="w-full sm:w-auto bg-cyan-500 text-white px-10 md:px-14 py-4 md:py-5 rounded-[2rem] font-black text-xs uppercase tracking-[0.2em] shadow-2xl shadow-cyan-500/30 hover:bg-cyan-400 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center">
-                {saving ? <div className="animate-spin h-4 w-4 border-2 border-white/30 border-t-white rounded-full mr-3"></div> : <i data-lucide="cloud-lightning" className="w-5 h-5 mr-4"></i>}
-                Sincronizar KV
-            </button>
-        </div>
-
-        {Object.keys(validationErrors).length > 0 && (
-            <div className="bg-rose-50 border-2 border-rose-200 rounded-[2rem] p-6 flex items-start space-x-4">
-                <i data-lucide="alert-circle" className="w-6 h-6 text-rose-500 shrink-0 mt-1"></i>
-                <div className="flex-1">
-                    <h4 className="font-black text-rose-900 text-sm uppercase tracking-wide mb-2">Errores de Validación</h4>
-                    <ul className="space-y-1">
-                        {Object.entries(validationErrors).map(([key, error]) => (
-                            <li key={key} className="text-rose-700 text-xs font-semibold">• {error}</li>
-                        ))}
-                    </ul>
-                </div>
-            </div>
-        )}
-
-        {/* MODO MATRIZ (NOC/SOC) */}
-        {selectedService.matriz_precios && (
-            <>
-                <div className="grid grid-cols-1 gap-8 md:gap-12">
-                    {['8x5', '7x24'].map(horario => (
-                        <div key={horario} className="bg-white rounded-[3rem] md:rounded-[4rem] p-8 md:p-12 border border-slate-100 shadow-sm relative overflow-hidden">
-                            <div className="absolute -top-10 -right-10 opacity-5 pointer-events-none"><i data-lucide="clock" className="w-48 h-48"></i></div>
-                            <h4 className="text-[11px] font-black text-slate-900 uppercase mb-10 md:mb-14 flex items-center tracking-[0.3em] relative z-10"><i data-lucide="clock" className="w-5 h-5 mr-4 text-cyan-500"></i>Esquema Operativo: {horario}</h4>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-10 relative z-10">
-                                {['bajo', 'medio', 'alto'].map(volumen => {
-                                    const key = `${horario}_${volumen}`;
-                                    const item = selectedService.matriz_precios[key];
-                                    if (!item) return null;
-                                    return (
-                                        <div key={volumen} className="bg-slate-50/60 rounded-[2rem] md:rounded-[2.5rem] p-8 md:p-10 border border-slate-100 hover:bg-white transition-all group shadow-sm hover:shadow-2xl hover:shadow-cyan-500/10 text-center">
-                                            <label className="text-[9px] font-black text-slate-400 uppercase block mb-6 tracking-widest">Carga {volumen}</label>
-                                            <div className="relative">
-                                                <span className="absolute left-0 top-1/2 -translate-y-1/2 text-slate-300 font-black text-2xl">$</span>
-                                                <input 
-                                                    type="number" 
-                                                    value={item.precio?.monto || 0} 
-                                                    onChange={(e) => handlePriceUpdate(key, e.target.value)} 
-                                                    className={`w-full pl-8 pr-4 bg-transparent border-none outline-none text-2xl md:text-3xl font-black text-slate-800 text-center focus:ring-0 transition-all ${validationErrors[key] ? 'input-error' : ''}`}
-                                                />
-                                            </div>
-                                            {validationErrors[key] && <p className="error-message">{validationErrors[key]}</p>}
-                                            <p className="text-[9px] text-slate-400 mt-6 font-extrabold italic tracking-widest uppercase opacity-60 leading-none">{item.precio?.unidad}</p>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    ))}
-                </div>
-
-                {/* 🆕 UMBRALES DE VOLUMEN */}
-                <div className="bg-white rounded-[3rem] p-8 md:p-12 border border-slate-100 shadow-sm">
-                    <h4 className="text-[11px] font-black text-slate-900 uppercase mb-10 flex items-center tracking-[0.3em]">
-                        <i data-lucide="sliders" className="w-5 h-5 mr-4 text-cyan-500"></i>Umbrales de Volumen
-                    </h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                        <div>
-                            <label className="text-[9px] font-black text-slate-400 uppercase block mb-3">Bajo (Máximo)</label>
-                            <input 
-                                type="number" 
-                                value={selectedService.umbrales_volumen?.bajo_max || 100} 
-                                onChange={(e) => handleUmbralUpdate('bajo_max', e.target.value)}
-                                className="w-full px-6 py-4 bg-slate-50 rounded-2xl border-2 border-transparent focus:border-cyan-500/20 outline-none text-xl font-black"
-                            />
-                        </div>
-                        <div>
-                            <label className="text-[9px] font-black text-slate-400 uppercase block mb-3">Medio (Mínimo)</label>
-                            <input 
-                                type="number" 
-                                value={selectedService.umbrales_volumen?.medio_min || 101} 
-                                onChange={(e) => handleUmbralUpdate('medio_min', e.target.value)}
-                                className="w-full px-6 py-4 bg-slate-50 rounded-2xl border-2 border-transparent focus:border-cyan-500/20 outline-none text-xl font-black"
-                            />
-                        </div>
-                        <div>
-                            <label className="text-[9px] font-black text-slate-400 uppercase block mb-3">Medio (Máximo)</label>
-                            <input 
-                                type="number" 
-                                value={selectedService.umbrales_volumen?.medio_max || 500} 
-                                onChange={(e) => handleUmbralUpdate('medio_max', e.target.value)}
-                                className="w-full px-6 py-4 bg-slate-50 rounded-2xl border-2 border-transparent focus:border-cyan-500/20 outline-none text-xl font-black"
-                            />
-                        </div>
-                        <div>
-                            <label className="text-[9px] font-black text-slate-400 uppercase block mb-3">Alto (Mínimo)</label>
-                            <input 
-                                type="number" 
-                                value={selectedService.umbrales_volumen?.alto_min || 501} 
-                                onChange={(e) => handleUmbralUpdate('alto_min', e.target.value)}
-                                className="w-full px-6 py-4 bg-slate-50 rounded-2xl border-2 border-transparent focus:border-cyan-500/20 outline-none text-xl font-black"
-                            />
-                        </div>
-                    </div>
-                </div>
-            </>
-        )}
-
-        {/* MODO PROYECTO (PENTESTING) */}
-        {selectedService.regla_calculo && (
-            <>
-                <div className="bg-white rounded-[3rem] md:rounded-[4rem] p-8 md:p-12 border border-slate-100 shadow-sm space-y-10 md:space-y-14 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none"><i data-lucide="cpu" className="w-40 h-40 text-cyan-500"></i></div>
-                    <h4 className="text-[11px] font-black text-slate-900 uppercase flex items-center tracking-[0.3em] relative z-10"><i data-lucide="cpu" className="w-6 h-6 mr-4 text-cyan-500"></i>Configuración de Algoritmo Pro</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-14 relative z-10">
-                        <div className="space-y-6">
-                            <label className="text-[10px] font-black text-slate-400 uppercase block tracking-[0.2em]">Fórmula Operativa</label>
-                            <input 
-                                type="text" 
-                                value={selectedService.regla_calculo || ""} 
-                                onChange={(e) => handleProjectRuleUpdate('regla_calculo', e.target.value)} 
-                                className="w-full px-8 py-5 md:py-6 bg-slate-50 rounded-[2rem] border-2 border-transparent focus:border-cyan-500/20 outline-none text-xl md:text-2xl font-black text-slate-800 shadow-inner focus:bg-white transition-all shadow-sm"
-                            />
-                            <div className="p-4 bg-amber-50/50 rounded-2xl border border-amber-100/50"><p className="text-[10px] text-amber-700 italic font-bold leading-relaxed">{selectedService.explicacion_regla}</p></div>
-                        </div>
-                        <div className="space-y-6">
-                            <label className="text-[10px] font-black text-slate-400 uppercase block tracking-[0.2em]">Honorarios Día Ing. Senior (MXN)</label>
-                            <div className="relative">
-                                <span className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300 font-black text-2xl">$</span>
-                                <input 
-                                    type="number" 
-                                    value={selectedService.costos_recursos?.ingeniero_senior?.costo_diario || 0} 
-                                    onChange={(e) => handleProjectRuleUpdate('costo_diario', e.target.value)} 
-                                    className="w-full pl-14 pr-8 py-5 md:py-6 bg-slate-50 rounded-[2rem] border-2 border-transparent focus:border-cyan-500/20 outline-none text-xl md:text-2xl font-black text-slate-800 shadow-inner focus:bg-white transition-all shadow-sm"
-                                />
-                            </div>
-                            <div className="bg-indigo-50 border border-indigo-100 p-5 rounded-2xl flex items-center justify-between">
-                                <span className="text-[10px] text-indigo-700 font-black uppercase tracking-widest">Multiplicador Retesting</span>
-                                <span className="text-lg font-black text-indigo-800">x{selectedService.retesting?.multiplicador || 2}</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* 🆕 REGLAS ADICIONALES PENTESTING */}
-                <div className="bg-white rounded-[3rem] p-8 md:p-12 border border-slate-100 shadow-sm">
-                    <h4 className="text-[11px] font-black text-slate-900 uppercase mb-10 flex items-center tracking-[0.3em]">
-                        <i data-lucide="calculator" className="w-5 h-5 mr-4 text-cyan-500"></i>Reglas de Cálculo
-                    </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div>
-                            <label className="text-[9px] font-black text-slate-400 uppercase block mb-3">Días Base (≤15 apps)</label>
-                            <input 
-                                type="number" 
-                                value={selectedService.reglas?.dias_base || 15} 
-                                onChange={(e) => handleProjectRuleUpdate('dias_base', e.target.value)}
-                                className="w-full px-6 py-4 bg-slate-50 rounded-2xl border-2 border-transparent focus:border-cyan-500/20 outline-none text-xl font-black"
-                            />
-                        </div>
-                        <div>
-                            <label className="text-[9px] font-black text-slate-400 uppercase block mb-3">Días por App Adicional</label>
-                            <input 
-                                type="number" 
-                                value={selectedService.reglas?.dias_por_app_adicional || 3} 
-                                onChange={(e) => handleProjectRuleUpdate('dias_por_app_adicional', e.target.value)}
-                                className="w-full px-6 py-4 bg-slate-50 rounded-2xl border-2 border-transparent focus:border-cyan-500/20 outline-none text-xl font-black"
-                            />
-                        </div>
-                        <div>
-                            <label className="text-[9px] font-black text-slate-400 uppercase block mb-3">Multiplicador Retesting</label>
-                            <input 
-                                type="number" 
-                                value={selectedService.reglas?.retesting_multiplicador || 2} 
-                                onChange={(e) => handleProjectRuleUpdate('retesting_multiplicador', e.target.value)}
-                                className="w-full px-6 py-4 bg-slate-50 rounded-2xl border-2 border-transparent focus:border-cyan-500/20 outline-none text-xl font-black"
-                            />
-                        </div>
-                    </div>
-                </div>
-            </>
-        )}
-
-        {/* MODO CONTACT CENTER */}
-        {selectedService.precios_por_agente_mes_mxn && (
-            <>
-                <div className="grid grid-cols-1 gap-8 md:gap-12">
-                    <div className="bg-white rounded-[3rem] md:rounded-[4rem] p-8 md:p-12 border border-slate-100 shadow-sm relative overflow-hidden text-center">
-                        <div className="absolute -top-10 -right-10 opacity-5 pointer-events-none"><i data-lucide="headphones" className="w-48 h-48"></i></div>
-                        <h4 className="text-[11px] font-black text-slate-900 uppercase mb-10 md:mb-14 flex items-center tracking-[0.3em] relative z-10"><i data-lucide="headphones" className="w-6 h-6 mr-4 text-cyan-500"></i>Tarifario por Licenciamiento</h4>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-10 relative z-10">
-                            {Object.keys(selectedService.precios_por_agente_mes_mxn).map(key => (
-                                <div key={key} className="bg-slate-50/60 rounded-[2rem] p-8 md:p-10 border border-slate-100 hover:bg-white transition-all">
-                                    <label className="text-[9px] font-black text-slate-400 uppercase block mb-6 tracking-widest">NIVEL {key.toUpperCase()}</label>
-                                    <div className="relative">
-                                        <span className="absolute left-0 top-1/2 -translate-y-1/2 text-slate-300 font-black text-2xl">$</span>
-                                        <input 
-                                            type="number" 
-                                            value={selectedService.precios_por_agente_mes_mxn[key].precio || 0} 
-                                            onChange={(e) => handlePriceUpdate(key, e.target.value)} 
-                                            className="w-full pl-8 pr-4 bg-transparent border-none outline-none text-2xl md:text-3xl font-black text-slate-800 text-center focus:ring-0 transition-all"
-                                        />
-                                    </div>
-                                    <p className="text-[9px] text-slate-400 mt-6 font-extrabold tracking-widest uppercase opacity-60">MXN / AGENTE / MES</p>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-
-                {/* 🆕 DESCUENTOS POR VOLUMEN */}
-                <div className="bg-white rounded-[3rem] p-8 md:p-12 border border-slate-100 shadow-sm">
-                    <h4 className="text-[11px] font-black text-slate-900 uppercase mb-10 flex items-center tracking-[0.3em]">
-                        <i data-lucide="percent" className="w-5 h-5 mr-4 text-cyan-500"></i>Descuentos por Volumen
-                    </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
-                            <h5 className="text-[9px] font-black text-slate-400 uppercase mb-6 tracking-widest">Umbral 1</h5>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="text-[8px] font-black text-slate-400 uppercase block mb-2">Cantidad Agentes</label>
-                                    <input 
-                                        type="number" 
-                                        value={selectedService.descuentos?.umbral_25_agentes?.cantidad || 25}
-                                        onChange={(e) => handleDescuentoCCUpdate('umbral_25_agentes', 'cantidad', e.target.value)}
-                                        className="w-full px-4 py-3 bg-white rounded-xl border-2 border-transparent focus:border-cyan-500/20 outline-none text-lg font-black"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="text-[8px] font-black text-slate-400 uppercase block mb-2">Descuento (%)</label>
-                                    <input 
-                                        type="number" 
-                                        value={selectedService.descuentos?.umbral_25_agentes?.porcentaje || 10}
-                                        onChange={(e) => handleDescuentoCCUpdate('umbral_25_agentes', 'porcentaje', e.target.value)}
-                                        className="w-full px-4 py-3 bg-white rounded-xl border-2 border-transparent focus:border-cyan-500/20 outline-none text-lg font-black"
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                        <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
-                            <h5 className="text-[9px] font-black text-slate-400 uppercase mb-6 tracking-widest">Umbral 2</h5>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="text-[8px] font-black text-slate-400 uppercase block mb-2">Cantidad Agentes</label>
-                                    <input 
-                                        type="number" 
-                                        value={selectedService.descuentos?.umbral_50_agentes?.cantidad || 50}
-                                        onChange={(e) => handleDescuentoCCUpdate('umbral_50_agentes', 'cantidad', e.target.value)}
-                                        className="w-full px-4 py-3 bg-white rounded-xl border-2 border-transparent focus:border-cyan-500/20 outline-none text-lg font-black"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="text-[8px] font-black text-slate-400 uppercase block mb-2">Descuento (%)</label>
-                                    <input 
-                                        type="number" 
-                                        value={selectedService.descuentos?.umbral_50_agentes?.porcentaje || 15}
-                                        onChange={(e) => handleDescuentoCCUpdate('umbral_50_agentes', 'porcentaje', e.target.value)}
-                                        className="w-full px-4 py-3 bg-white rounded-xl border-2 border-transparent focus:border-cyan-500/20 outline-none text-lg font-black"
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </>
-        )}
-
-        {/* MODO NUBE GCP (INSTANCIAS) */}
-        {selectedService.tipos_instancia && (
-            <>
-                <div className="grid grid-cols-1 gap-8 md:gap-12">
-                    <div className="bg-white rounded-[3rem] md:rounded-[4rem] p-8 md:p-12 border border-slate-100 shadow-sm relative overflow-hidden">
-                        <div className="absolute -top-10 -right-10 opacity-5 pointer-events-none"><i data-lucide="cloud" className="w-48 h-48"></i></div>
-                        <h4 className="text-[11px] font-black text-slate-900 uppercase mb-10 md:mb-14 flex items-center tracking-[0.3em] relative z-10"><i data-lucide="cloud" className="w-6 h-6 mr-4 text-cyan-500"></i>Especificaciones de Instancias</h4>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-10 relative z-10">
-                            {Object.keys(selectedService.tipos_instancia).map(key => (
-                                <div key={key} className="bg-slate-50/60 rounded-[2rem] p-8 md:p-10 border border-slate-100 hover:bg-white transition-all shadow-sm">
-                                    <label className="text-[9px] font-black text-slate-400 uppercase block mb-6 tracking-widest text-center">{selectedService.tipos_instancia[key].nombre}</label>
-                                    <div className="space-y-4">
-                                        <div className="bg-white p-4 rounded-2xl shadow-inner">
-                                            <p className="text-[8px] font-black text-slate-400 uppercase mb-1">vCPUs</p>
-                                            <input 
-                                                type="number" 
-                                                step="0.01" 
-                                                value={selectedService.tipos_instancia[key].vcpus || 0} 
-                                                onChange={(e) => handlePriceUpdate(key, e.target.value, 'vcpus')} 
-                                                className="w-full bg-transparent border-none p-0 text-lg font-black text-slate-800 focus:ring-0"
-                                            />
-                                        </div>
-                                        <div className="bg-white p-4 rounded-2xl shadow-inner">
-                                            <p className="text-[8px] font-black text-slate-400 uppercase mb-1">RAM (GB)</p>
-                                            <input 
-                                                type="number" 
-                                                value={selectedService.tipos_instancia[key].ram_gb || 0} 
-                                                onChange={(e) => handlePriceUpdate(key, e.target.value, 'ram_gb')} 
-                                                className="w-full bg-transparent border-none p-0 text-lg font-black text-slate-800 focus:ring-0"
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-
-                {/* 🆕 TARIFAS POR REGIÓN */}
-                <div className="bg-white rounded-[3rem] p-8 md:p-12 border border-slate-100 shadow-sm">
-                    <h4 className="text-[11px] font-black text-slate-900 uppercase mb-10 flex items-center tracking-[0.3em]">
-                        <i data-lucide="globe" className="w-5 h-5 mr-4 text-cyan-500"></i>Tarifas por Región (USD/hora)
-                    </h4>
-                    {['us-central1', 'us-east1', 'southamerica-east1'].map(region => (
-                        <div key={region} className="mb-8 last:mb-0">
-                            <h5 className="text-[9px] font-black text-slate-400 uppercase mb-6 tracking-widest">{region}</h5>
-                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-4">
-                                {Object.keys(selectedService.tipos_instancia).map(instancia => {
-                                    const tarifaKey = instancia.replace(/-/g, '_');
-                                    const tarifa = selectedService.tarifas_por_hora_usd?.[region]?.[tarifaKey] || 0;
-                                    return (
-                                        <div key={instancia} className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                                            <p className="text-[8px] font-black text-slate-400 uppercase mb-2 truncate">{instancia}</p>
-                                            <div className="relative">
-                                                <span className="absolute left-0 top-1/2 -translate-y-1/2 text-slate-300 text-xs">$</span>
-                                                <input 
-                                                    type="number" 
-                                                    step="0.001" 
-                                                    value={tarifa}
-                                                    onChange={(e) => handleNubeTarifaUpdate(region, tarifaKey, e.target.value)}
-                                                    className="w-full pl-3 bg-transparent border-none outline-none text-sm font-black text-slate-800 focus:ring-0"
-                                                />
+                                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-8">
+                                        <div className="min-w-0 flex-1">
+                                            <h3 className="text-2xl md:text-4xl font-black text-slate-900 tracking-tighter leading-tight">{cleanServiceName(selectedService.nombre)}</h3>
+                                            <div className="flex flex-wrap gap-3 mt-4">
+                                                <span className="bg-cyan-50 text-cyan-600 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-[0.1em] border border-cyan-100">ID: {selectedService.servicio_id}</span>
+                                                <span className="bg-slate-100 text-slate-500 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-[0.1em] border border-slate-200">Motor: {getMotorName(selectedService)}</span>
                                             </div>
                                         </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    ))}
-                </div>
-
-                {/* 🆕 FÓRMULA B-DRIVE */}
-                <div className="bg-white rounded-[3rem] p-8 md:p-12 border border-slate-100 shadow-sm">
-                    <h4 className="text-[11px] font-black text-slate-900 uppercase mb-10 flex items-center tracking-[0.3em]">
-                        <i data-lucide="calculator" className="w-5 h-5 mr-4 text-cyan-500"></i>Fórmula B-drive (Servicio 1)
-                    </h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                        <div>
-                            <label className="text-[9px] font-black text-slate-400 uppercase block mb-3">Margen Contractual (%)</label>
-                            <input 
-                                type="number" 
-                                value={selectedService.formula_bdrive?.margen_contractual_pct || 12}
-                                onChange={(e) => handleFormulaBdriveUpdate('margen_contractual_pct', e.target.value)}
-                                className="w-full px-6 py-4 bg-slate-50 rounded-2xl border-2 border-transparent focus:border-cyan-500/20 outline-none text-xl font-black"
-                            />
-                        </div>
-                        <div>
-                            <label className="text-[9px] font-black text-slate-400 uppercase block mb-3">Costo Personal Jr (MXN/mes)</label>
-                            <input 
-                                type="number" 
-                                value={selectedService.formula_bdrive?.costo_personal_jr_mes || 14000}
-                                onChange={(e) => handleFormulaBdriveUpdate('costo_personal_jr_mes', e.target.value)}
-                                className="w-full px-6 py-4 bg-slate-50 rounded-2xl border-2 border-transparent focus:border-cyan-500/20 outline-none text-xl font-black"
-                            />
-                        </div>
-                        <div>
-                            <label className="text-[9px] font-black text-slate-400 uppercase block mb-3">Adicional Proyecto (%)</label>
-                            <input 
-                                type="number" 
-                                value={selectedService.formula_bdrive?.adicional_proyecto_pct || 10}
-                                onChange={(e) => handleFormulaBdriveUpdate('adicional_proyecto_pct', e.target.value)}
-                                className="w-full px-6 py-4 bg-slate-50 rounded-2xl border-2 border-transparent focus:border-cyan-500/20 outline-none text-xl font-black"
-                            />
-                        </div>
-                        <div>
-                            <label className="text-[9px] font-black text-slate-400 uppercase block mb-3">Descuento Uso Sostenido (%)</label>
-                            <input 
-                                type="number" 
-                                value={selectedService.formula_bdrive?.descuento_uso_sostenido_pct || 30}
-                                onChange={(e) => handleFormulaBdriveUpdate('descuento_uso_sostenido_pct', e.target.value)}
-                                className="w-full px-6 py-4 bg-slate-50 rounded-2xl border-2 border-transparent focus:border-cyan-500/20 outline-none text-xl font-black"
-                            />
-                        </div>
-                        <div>
-                            <label className="text-[9px] font-black text-slate-400 uppercase block mb-3">Horas para Descuento</label>
-                            <input 
-                                type="number" 
-                                value={selectedService.formula_bdrive?.horas_para_descuento || 730}
-                                onChange={(e) => handleFormulaBdriveUpdate('horas_para_descuento', e.target.value)}
-                                className="w-full px-6 py-4 bg-slate-50 rounded-2xl border-2 border-transparent focus:border-cyan-500/20 outline-none text-xl font-black"
-                            />
-                        </div>
-                    </div>
-                </div>
-
-                {/* 🆕 STORAGE */}
-                <div className="bg-white rounded-[3rem] p-8 md:p-12 border border-slate-100 shadow-sm">
-                    <h4 className="text-[11px] font-black text-slate-900 uppercase mb-10 flex items-center tracking-[0.3em]">
-                        <i data-lucide="hard-drive" className="w-5 h-5 mr-4 text-cyan-500"></i>Almacenamiento
-                    </h4>
-                    <div className="max-w-md">
-                        <label className="text-[9px] font-black text-slate-400 uppercase block mb-3">Precio por GB/mes (USD)</label>
-                        <div className="relative">
-                            <span className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300 font-black text-2xl">$</span>
-                            <input 
-                                type="number" 
-                                step="0.001"
-                                value={selectedService.storage?.precio_gb_mes_usd || 0.020}
-                                onChange={(e) => {
-                                    const updated = JSON.parse(JSON.stringify(selectedService));
-                                    if (!updated.storage) updated.storage = {};
-                                    updated.storage.precio_gb_mes_usd = parseFloat(e.target.value) || 0;
-                                    setSelectedService(updated);
-                                }}
-                                className="w-full pl-14 pr-8 py-5 bg-slate-50 rounded-[2rem] border-2 border-transparent focus:border-cyan-500/20 outline-none text-2xl font-black text-slate-800"
-                            />
-                        </div>
-                    </div>
-                </div>
-            </>
-        )}
-
-        {/* MODO PLANES (WORKSPACE / CORREO) */}
-        {selectedService.planes && (
-            <>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-10">
-                    {Object.keys(selectedService.planes).map(pId => (
-                        <div key={pId} className="bg-white rounded-[2.5rem] md:rounded-[3.5rem] p-8 md:p-10 border border-slate-100 shadow-sm hover:border-cyan-200 transition-all group flex flex-col min-h-[350px] relative overflow-hidden">
-                            <span className="text-[9px] font-black text-cyan-600 bg-cyan-50 px-4 py-2 rounded-full uppercase tracking-widest w-fit mb-8 border border-cyan-100 relative z-10">{pId}</span>
-                            <h4 className="text-xl md:text-2xl font-black text-slate-800 mb-10 leading-tight tracking-tight relative z-10 truncate">{selectedService.planes[pId].nombre}</h4>
-                            <div className="flex-1 space-y-8 relative z-10">
-                                <div className="bg-slate-50 p-6 md:p-8 rounded-[2.5rem] shadow-inner transition-colors group-hover:bg-slate-50/40">
-                                    <label className="text-[9px] font-black text-slate-400 uppercase block mb-2 tracking-widest">Fee Mensual</label>
-                                    <div className="relative">
-                                        <span className="absolute left-0 top-1/2 -translate-y-1/2 text-slate-300 font-black text-3xl">$</span>
-                                        <input 
-                                            type="number" 
-                                            value={selectedService.planes[pId].precio_mensual || 0} 
-                                            onChange={(e) => handlePriceUpdate(pId, e.target.value)} 
-                                            className="w-full pl-8 bg-transparent border-none outline-none text-3xl md:text-4xl font-black text-slate-800 focus:ring-0 transition-all"
-                                        />
+                                        <button onClick={saveChanges} disabled={saving || Object.keys(validationErrors).length > 0} className="w-full sm:w-auto bg-cyan-500 text-white px-10 md:px-14 py-4 md:py-5 rounded-[2rem] font-black text-xs uppercase tracking-[0.2em] shadow-2xl shadow-cyan-500/30 hover:bg-cyan-400 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center">
+                                            {saving ? <div className="animate-spin h-4 w-4 border-2 border-white/30 border-t-white rounded-full mr-3"></div> : <i data-lucide="cloud-lightning" className="w-5 h-5 mr-4"></i>}
+                                            Sincronizar KV
+                                        </button>
                                     </div>
-                                </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 text-center"><p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Espacio</p><p className="text-xs font-bold text-slate-700 mt-1">{selectedService.planes[pId].almacenamiento || '---'}</p></div>
-                                    <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 text-center"><p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Meet</p><p className="text-xs font-bold text-slate-700 mt-1">{selectedService.planes[pId].participantes_meet ? `${selectedService.planes[pId].participantes_meet} pax` : '---'}</p></div>
-                                </div>
-                            </div>
-                        </div>
-                    ))}
-                </div>
 
-                {/* 🆕 LÍMITES CORREO */}
-                <div className="bg-white rounded-[3rem] p-8 md:p-12 border border-slate-100 shadow-sm">
-                    <h4 className="text-[11px] font-black text-slate-900 uppercase mb-10 flex items-center tracking-[0.3em]">
-                        <i data-lucide="shield" className="w-5 h-5 mr-4 text-cyan-500"></i>Reglas de Derivación
-                    </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div>
-                            <label className="text-[9px] font-black text-slate-400 uppercase block mb-3">Usuarios Máximo Automático</label>
-                            <input 
-                                type="number" 
-                                value={selectedService.limites?.usuarios_max_automatico || 300}
-                                onChange={(e) => {
-                                    const updated = JSON.parse(JSON.stringify(selectedService));
-                                    if (!updated.limites) updated.limites = {};
-                                    updated.limites.usuarios_max_automatico = parseInt(e.target.value) || 0;
-                                    setSelectedService(updated);
-                                }}
-                                className="w-full px-6 py-4 bg-slate-50 rounded-2xl border-2 border-transparent focus:border-cyan-500/20 outline-none text-xl font-black"
-                            />
-                        </div>
-                        <div className="flex items-center space-x-4 bg-slate-50 p-6 rounded-2xl">
-                            <input 
-                                type="checkbox" 
-                                checked={selectedService.limites?.derivar_si_migracion || false}
-                                onChange={(e) => {
-                                    const updated = JSON.parse(JSON.stringify(selectedService));
-                                    if (!updated.limites) updated.limites = {};
-                                    updated.limites.derivar_si_migracion = e.target.checked;
-                                    setSelectedService(updated);
-                                }}
-                                className="w-6 h-6 rounded-lg border-2 border-slate-300 text-cyan-500 focus:ring-2 focus:ring-cyan-500"
-                            />
-                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Derivar si es Migración</label>
-                        </div>
-                        <div className="flex items-center space-x-4 bg-slate-50 p-6 rounded-2xl">
-                            <input 
-                                type="checkbox" 
-                                checked={selectedService.limites?.derivar_si_enterprise || false}
-                                onChange={(e) => {
-                                    const updated = JSON.parse(JSON.stringify(selectedService));
-                                    if (!updated.limites) updated.limites = {};
-                                    updated.limites.derivar_si_enterprise = e.target.checked;
-                                    setSelectedService(updated);
-                                }}
-                                className="w-6 h-6 rounded-lg border-2 border-slate-300 text-cyan-500 focus:ring-2 focus:ring-cyan-500"
-                            />
-                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Derivar si pide Enterprise</label>
-                        </div>
-                    </div>
-                </div>
-            </>
-        )}
+                                    {Object.keys(validationErrors).length > 0 && (
+                                        <div className="bg-rose-50 border-2 border-rose-200 rounded-[2rem] p-6 flex items-start space-x-4">
+                                            <i data-lucide="alert-circle" className="w-6 h-6 text-rose-500 shrink-0 mt-1"></i>
+                                            <div className="flex-1">
+                                                <h4 className="font-black text-rose-900 text-sm uppercase tracking-wide mb-2">Errores de Validación</h4>
+                                                <ul className="space-y-1">
+                                                    {Object.entries(validationErrors).map(([key, error]) => (
+                                                        <li key={key} className="text-rose-700 text-xs font-semibold">• {error}</li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    )}
 
-        {/* FALLBACK: JSON CRUDO */}
-        {!selectedService.matriz_precios && !selectedService.regla_calculo && !selectedService.planes && !selectedService.precios_por_agente_mes_mxn && !selectedService.tipos_instancia && (
-            <div className="bg-white rounded-[3rem] p-10 border border-slate-100 shadow-sm space-y-6">
-                <div className="bg-amber-50 border border-amber-200 p-6 rounded-[2rem] flex items-start space-x-4 shadow-sm">
-                    <i data-lucide="alert-circle" className="text-amber-500 w-6 h-6 shrink-0 mt-1"></i>
-                    <div>
-                        <h5 className="font-black text-amber-900 uppercase text-xs tracking-widest leading-none">Estructura Nueva Detectada</h5>
-                        <p className="text-amber-700 text-xs mt-2 leading-relaxed opacity-80 font-medium">Puedes editar el JSON crudo directamente. Los cambios se sincronizarán con Cloudflare Edge de forma segura.</p>
-                    </div>
-                </div>
-                <textarea 
-                    className="w-full h-[450px] p-10 bg-slate-900 text-cyan-400 font-mono text-[11px] rounded-[3rem] border-none outline-none focus:ring-8 focus:ring-cyan-500/5 custom-scrollbar leading-loose shadow-2xl"
-                    value={JSON.stringify(selectedService, null, 2)}
-                    onChange={(e) => {
-                        try {
-                            const parsed = JSON.parse(e.target.value);
-                            setSelectedService(parsed);
-                        } catch(err) {}
-                    }}
-                ></textarea>
-            </div>
-        )}
-    </div>
-)}}
-                                    {/* Por límites de espacio, te lo envío en el siguiente mensaje */}
+                                    {/* MODO MATRIZ (NOC/SOC) */}
+                                    {selectedService.matriz_precios && (
+                                        <>
+                                            <div className="grid grid-cols-1 gap-8 md:gap-12">
+                                                {['8x5', '7x24'].map(horario => (
+                                                    <div key={horario} className="bg-white rounded-[3rem] md:rounded-[4rem] p-8 md:p-12 border border-slate-100 shadow-sm relative overflow-hidden">
+                                                        <div className="absolute -top-10 -right-10 opacity-5 pointer-events-none"><i data-lucide="clock" className="w-48 h-48"></i></div>
+                                                        <h4 className="text-[11px] font-black text-slate-900 uppercase mb-10 md:mb-14 flex items-center tracking-[0.3em] relative z-10"><i data-lucide="clock" className="w-5 h-5 mr-4 text-cyan-500"></i>Esquema Operativo: {horario}</h4>
+                                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-10 relative z-10">
+                                                            {['bajo', 'medio', 'alto'].map(volumen => {
+                                                                const key = `${horario}_${volumen}`;
+                                                                const item = selectedService.matriz_precios[key];
+                                                                if (!item) return null;
+                                                                return (
+                                                                    <div key={volumen} className="bg-slate-50/60 rounded-[2rem] md:rounded-[2.5rem] p-8 md:p-10 border border-slate-100 hover:bg-white transition-all group shadow-sm hover:shadow-2xl hover:shadow-cyan-500/10 text-center">
+                                                                        <label className="text-[9px] font-black text-slate-400 uppercase block mb-6 tracking-widest">Carga {volumen}</label>
+                                                                        <div className="relative">
+                                                                            <span className="absolute left-0 top-1/2 -translate-y-1/2 text-slate-300 font-black text-2xl">$</span>
+                                                                            <input 
+                                                                                type="number" 
+                                                                                value={item.precio?.monto || 0} 
+                                                                                onChange={(e) => handlePriceUpdate(key, e.target.value)} 
+                                                                                className={`w-full pl-8 pr-4 bg-transparent border-none outline-none text-2xl md:text-3xl font-black text-slate-800 text-center focus:ring-0 transition-all ${validationErrors[key] ? 'input-error' : ''}`}
+                                                                            />
+                                                                        </div>
+                                                                        {validationErrors[key] && <p className="error-message">{validationErrors[key]}</p>}
+                                                                        <p className="text-[9px] text-slate-400 mt-6 font-extrabold italic tracking-widest uppercase opacity-60 leading-none">{item.precio?.unidad}</p>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+
+                                            {/* 🆕 UMBRALES DE VOLUMEN */}
+                                            <div className="bg-white rounded-[3rem] p-8 md:p-12 border border-slate-100 shadow-sm">
+                                                <h4 className="text-[11px] font-black text-slate-900 uppercase mb-10 flex items-center tracking-[0.3em]">
+                                                    <i data-lucide="sliders" className="w-5 h-5 mr-4 text-cyan-500"></i>Umbrales de Volumen
+                                                </h4>
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                                                    <div>
+                                                        <label className="text-[9px] font-black text-slate-400 uppercase block mb-3">Bajo (Máximo)</label>
+                                                        <input 
+                                                            type="number" 
+                                                            value={selectedService.umbrales_volumen?.bajo_max || 100} 
+                                                            onChange={(e) => handleUmbralUpdate('bajo_max', e.target.value)}
+                                                            className="w-full px-6 py-4 bg-slate-50 rounded-2xl border-2 border-transparent focus:border-cyan-500/20 outline-none text-xl font-black"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-[9px] font-black text-slate-400 uppercase block mb-3">Medio (Mínimo)</label>
+                                                        <input 
+                                                            type="number" 
+                                                            value={selectedService.umbrales_volumen?.medio_min || 101} 
+                                                            onChange={(e) => handleUmbralUpdate('medio_min', e.target.value)}
+                                                            className="w-full px-6 py-4 bg-slate-50 rounded-2xl border-2 border-transparent focus:border-cyan-500/20 outline-none text-xl font-black"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-[9px] font-black text-slate-400 uppercase block mb-3">Medio (Máximo)</label>
+                                                        <input 
+                                                            type="number" 
+                                                            value={selectedService.umbrales_volumen?.medio_max || 500} 
+                                                            onChange={(e) => handleUmbralUpdate('medio_max', e.target.value)}
+                                                            className="w-full px-6 py-4 bg-slate-50 rounded-2xl border-2 border-transparent focus:border-cyan-500/20 outline-none text-xl font-black"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-[9px] font-black text-slate-400 uppercase block mb-3">Alto (Mínimo)</label>
+                                                        <input 
+                                                            type="number" 
+                                                            value={selectedService.umbrales_volumen?.alto_min || 501} 
+                                                            onChange={(e) => handleUmbralUpdate('alto_min', e.target.value)}
+                                                            className="w-full px-6 py-4 bg-slate-50 rounded-2xl border-2 border-transparent focus:border-cyan-500/20 outline-none text-xl font-black"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </>
+                                    )}
+
+                                    {/* MODO PROYECTO (PENTESTING) */}
+                                    {selectedService.regla_calculo && (
+                                        <>
+                                            <div className="bg-white rounded-[3rem] md:rounded-[4rem] p-8 md:p-12 border border-slate-100 shadow-sm space-y-10 md:space-y-14 relative overflow-hidden">
+                                                <div className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none"><i data-lucide="cpu" className="w-40 h-40 text-cyan-500"></i></div>
+                                                <h4 className="text-[11px] font-black text-slate-900 uppercase flex items-center tracking-[0.3em] relative z-10"><i data-lucide="cpu" className="w-6 h-6 mr-4 text-cyan-500"></i>Configuración de Algoritmo Pro</h4>
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-14 relative z-10">
+                                                    <div className="space-y-6">
+                                                        <label className="text-[10px] font-black text-slate-400 uppercase block tracking-[0.2em]">Fórmula Operativa</label>
+                                                        <input 
+                                                            type="text" 
+                                                            value={selectedService.regla_calculo || ""} 
+                                                            onChange={(e) => handleProjectRuleUpdate('regla_calculo', e.target.value)} 
+                                                            className="w-full px-8 py-5 md:py-6 bg-slate-50 rounded-[2rem] border-2 border-transparent focus:border-cyan-500/20 outline-none text-xl md:text-2xl font-black text-slate-800 shadow-inner focus:bg-white transition-all shadow-sm"
+                                                        />
+                                                        <div className="p-4 bg-amber-50/50 rounded-2xl border border-amber-100/50"><p className="text-[10px] text-amber-700 italic font-bold leading-relaxed">{selectedService.explicacion_regla}</p></div>
+                                                    </div>
+                                                    <div className="space-y-6">
+                                                        <label className="text-[10px] font-black text-slate-400 uppercase block tracking-[0.2em]">Honorarios Día Ing. Senior (MXN)</label>
+                                                        <div className="relative">
+                                                            <span className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300 font-black text-2xl">$</span>
+                                                            <input 
+                                                                type="number" 
+                                                                value={selectedService.costos_recursos?.ingeniero_senior?.costo_diario || 0} 
+                                                                onChange={(e) => handleProjectRuleUpdate('costo_diario', e.target.value)} 
+                                                                className="w-full pl-14 pr-8 py-5 md:py-6 bg-slate-50 rounded-[2rem] border-2 border-transparent focus:border-cyan-500/20 outline-none text-xl md:text-2xl font-black text-slate-800 shadow-inner focus:bg-white transition-all shadow-sm"
+                                                            />
+                                                        </div>
+                                                        <div className="bg-indigo-50 border border-indigo-100 p-5 rounded-2xl flex items-center justify-between">
+                                                            <span className="text-[10px] text-indigo-700 font-black uppercase tracking-widest">Multiplicador Retesting</span>
+                                                            <span className="text-lg font-black text-indigo-800">x{selectedService.retesting?.multiplicador || 2}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* 🆕 REGLAS ADICIONALES PENTESTING */}
+                                            <div className="bg-white rounded-[3rem] p-8 md:p-12 border border-slate-100 shadow-sm">
+                                                <h4 className="text-[11px] font-black text-slate-900 uppercase mb-10 flex items-center tracking-[0.3em]">
+                                                    <i data-lucide="calculator" className="w-5 h-5 mr-4 text-cyan-500"></i>Reglas de Cálculo
+                                                </h4>
+                                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                                    <div>
+                                                        <label className="text-[9px] font-black text-slate-400 uppercase block mb-3">Días Base (≤15 apps)</label>
+                                                        <input 
+                                                            type="number" 
+                                                            value={selectedService.reglas?.dias_base || 15} 
+                                                            onChange={(e) => handleProjectRuleUpdate('dias_base', e.target.value)}
+                                                            className="w-full px-6 py-4 bg-slate-50 rounded-2xl border-2 border-transparent focus:border-cyan-500/20 outline-none text-xl font-black"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-[9px] font-black text-slate-400 uppercase block mb-3">Días por App Adicional</label>
+                                                        <input 
+                                                            type="number" 
+                                                            value={selectedService.reglas?.dias_por_app_adicional || 3} 
+                                                            onChange={(e) => handleProjectRuleUpdate('dias_por_app_adicional', e.target.value)}
+                                                            className="w-full px-6 py-4 bg-slate-50 rounded-2xl border-2 border-transparent focus:border-cyan-500/20 outline-none text-xl font-black"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-[9px] font-black text-slate-400 uppercase block mb-3">Multiplicador Retesting</label>
+                                                        <input 
+                                                            type="number" 
+                                                            value={selectedService.reglas?.retesting_multiplicador || 2} 
+                                                            onChange={(e) => handleProjectRuleUpdate('retesting_multiplicador', e.target.value)}
+                                                            className="w-full px-6 py-4 bg-slate-50 rounded-2xl border-2 border-transparent focus:border-cyan-500/20 outline-none text-xl font-black"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </>
+                                    )}
+
+                                    {/* MODO CONTACT CENTER */}
+                                    {selectedService.precios_por_agente_mes_mxn && (
+                                        <>
+                                            <div className="grid grid-cols-1 gap-8 md:gap-12">
+                                                <div className="bg-white rounded-[3rem] md:rounded-[4rem] p-8 md:p-12 border border-slate-100 shadow-sm relative overflow-hidden text-center">
+                                                    <div className="absolute -top-10 -right-10 opacity-5 pointer-events-none"><i data-lucide="headphones" className="w-48 h-48"></i></div>
+                                                    <h4 className="text-[11px] font-black text-slate-900 uppercase mb-10 md:mb-14 flex items-center tracking-[0.3em] relative z-10"><i data-lucide="headphones" className="w-6 h-6 mr-4 text-cyan-500"></i>Tarifario por Licenciamiento</h4>
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-10 relative z-10">
+                                                        {Object.keys(selectedService.precios_por_agente_mes_mxn).map(key => (
+                                                            <div key={key} className="bg-slate-50/60 rounded-[2rem] p-8 md:p-10 border border-slate-100 hover:bg-white transition-all">
+                                                                <label className="text-[9px] font-black text-slate-400 uppercase block mb-6 tracking-widest">NIVEL {key.toUpperCase()}</label>
+                                                                <div className="relative">
+                                                                    <span className="absolute left-0 top-1/2 -translate-y-1/2 text-slate-300 font-black text-2xl">$</span>
+                                                                    <input 
+                                                                        type="number" 
+                                                                        value={selectedService.precios_por_agente_mes_mxn[key].precio || 0} 
+                                                                        onChange={(e) => handlePriceUpdate(key, e.target.value)} 
+                                                                        className="w-full pl-8 pr-4 bg-transparent border-none outline-none text-2xl md:text-3xl font-black text-slate-800 text-center focus:ring-0 transition-all"
+                                                                    />
+                                                                </div>
+                                                                <p className="text-[9px] text-slate-400 mt-6 font-extrabold tracking-widest uppercase opacity-60">MXN / AGENTE / MES</p>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* 🆕 DESCUENTOS POR VOLUMEN */}
+                                            <div className="bg-white rounded-[3rem] p-8 md:p-12 border border-slate-100 shadow-sm">
+                                                <h4 className="text-[11px] font-black text-slate-900 uppercase mb-10 flex items-center tracking-[0.3em]">
+                                                    <i data-lucide="percent" className="w-5 h-5 mr-4 text-cyan-500"></i>Descuentos por Volumen
+                                                </h4>
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                                    <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
+                                                        <h5 className="text-[9px] font-black text-slate-400 uppercase mb-6 tracking-widest">Umbral 1</h5>
+                                                        <div className="grid grid-cols-2 gap-4">
+                                                            <div>
+                                                                <label className="text-[8px] font-black text-slate-400 uppercase block mb-2">Cantidad Agentes</label>
+                                                                <input 
+                                                                    type="number" 
+                                                                    value={selectedService.descuentos?.umbral_25_agentes?.cantidad || 25}
+                                                                    onChange={(e) => handleDescuentoCCUpdate('umbral_25_agentes', 'cantidad', e.target.value)}
+                                                                    className="w-full px-4 py-3 bg-white rounded-xl border-2 border-transparent focus:border-cyan-500/20 outline-none text-lg font-black"
+                                                                />
+                                                            </div>
+                                                            <div>
+                                                                <label className="text-[8px] font-black text-slate-400 uppercase block mb-2">Descuento (%)</label>
+                                                                <input 
+                                                                    type="number" 
+                                                                    value={selectedService.descuentos?.umbral_25_agentes?.porcentaje || 10}
+                                                                    onChange={(e) => handleDescuentoCCUpdate('umbral_25_agentes', 'porcentaje', e.target.value)}
+                                                                    className="w-full px-4 py-3 bg-white rounded-xl border-2 border-transparent focus:border-cyan-500/20 outline-none text-lg font-black"
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
+                                                        <h5 className="text-[9px] font-black text-slate-400 uppercase mb-6 tracking-widest">Umbral 2</h5>
+                                                        <div className="grid grid-cols-2 gap-4">
+                                                            <div>
+                                                                <label className="text-[8px] font-black text-slate-400 uppercase block mb-2">Cantidad Agentes</label>
+                                                                <input 
+                                                                    type="number" 
+                                                                    value={selectedService.descuentos?.umbral_50_agentes?.cantidad || 50}
+                                                                    onChange={(e) => handleDescuentoCCUpdate('umbral_50_agentes', 'cantidad', e.target.value)}
+                                                                    className="w-full px-4 py-3 bg-white rounded-xl border-2 border-transparent focus:border-cyan-500/20 outline-none text-lg font-black"
+                                                                />
+                                                            </div>
+                                                            <div>
+                                                                <label className="text-[8px] font-black text-slate-400 uppercase block mb-2">Descuento (%)</label>
+                                                                <input 
+                                                                    type="number" 
+                                                                    value={selectedService.descuentos?.umbral_50_agentes?.porcentaje || 15}
+                                                                    onChange={(e) => handleDescuentoCCUpdate('umbral_50_agentes', 'porcentaje', e.target.value)}
+                                                                    className="w-full px-4 py-3 bg-white rounded-xl border-2 border-transparent focus:border-cyan-500/20 outline-none text-lg font-black"
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </>
+                                    )}
+
+                                    {/* MODO NUBE GCP (INSTANCIAS) */}
+                                    {selectedService.tipos_instancia && (
+                                        <>
+                                            <div className="grid grid-cols-1 gap-8 md:gap-12">
+                                                <div className="bg-white rounded-[3rem] md:rounded-[4rem] p-8 md:p-12 border border-slate-100 shadow-sm relative overflow-hidden">
+                                                    <div className="absolute -top-10 -right-10 opacity-5 pointer-events-none"><i data-lucide="cloud" className="w-48 h-48"></i></div>
+                                                    <h4 className="text-[11px] font-black text-slate-900 uppercase mb-10 md:mb-14 flex items-center tracking-[0.3em] relative z-10"><i data-lucide="cloud" className="w-6 h-6 mr-4 text-cyan-500"></i>Especificaciones de Instancias</h4>
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-10 relative z-10">
+                                                        {Object.keys(selectedService.tipos_instancia).map(key => (
+                                                            <div key={key} className="bg-slate-50/60 rounded-[2rem] p-8 md:p-10 border border-slate-100 hover:bg-white transition-all shadow-sm">
+                                                                <label className="text-[9px] font-black text-slate-400 uppercase block mb-6 tracking-widest text-center">{selectedService.tipos_instancia[key].nombre}</label>
+                                                                <div className="space-y-4">
+                                                                    <div className="bg-white p-4 rounded-2xl shadow-inner">
+                                                                        <p className="text-[8px] font-black text-slate-400 uppercase mb-1">vCPUs</p>
+                                                                        <input 
+                                                                            type="number" 
+                                                                            step="0.01" 
+                                                                            value={selectedService.tipos_instancia[key].vcpus || 0} 
+                                                                            onChange={(e) => handlePriceUpdate(key, e.target.value, 'vcpus')} 
+                                                                            className="w-full bg-transparent border-none p-0 text-lg font-black text-slate-800 focus:ring-0"
+                                                                        />
+                                                                    </div>
+                                                                    <div className="bg-white p-4 rounded-2xl shadow-inner">
+                                                                        <p className="text-[8px] font-black text-slate-400 uppercase mb-1">RAM (GB)</p>
+                                                                        <input 
+                                                                            type="number" 
+                                                                            value={selectedService.tipos_instancia[key].ram_gb || 0} 
+                                                                            onChange={(e) => handlePriceUpdate(key, e.target.value, 'ram_gb')} 
+                                                                            className="w-full bg-transparent border-none p-0 text-lg font-black text-slate-800 focus:ring-0"
+                                                                        />
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* 🆕 TARIFAS POR REGIÓN */}
+                                            <div className="bg-white rounded-[3rem] p-8 md:p-12 border border-slate-100 shadow-sm">
+                                                <h4 className="text-[11px] font-black text-slate-900 uppercase mb-10 flex items-center tracking-[0.3em]">
+                                                    <i data-lucide="globe" className="w-5 h-5 mr-4 text-cyan-500"></i>Tarifas por Región (USD/hora)
+                                                </h4>
+                                                {['us-central1', 'us-east1', 'southamerica-east1'].map(region => (
+                                                    <div key={region} className="mb-8 last:mb-0">
+                                                        <h5 className="text-[9px] font-black text-slate-400 uppercase mb-6 tracking-widest">{region}</h5>
+                                                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-4">
+                                                            {Object.keys(selectedService.tipos_instancia).map(instancia => {
+                                                                const tarifaKey = instancia.replace(/-/g, '_');
+                                                                const tarifa = selectedService.tarifas_por_hora_usd?.[region]?.[tarifaKey] || 0;
+                                                                return (
+                                                                    <div key={instancia} className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                                                                        <p className="text-[8px] font-black text-slate-400 uppercase mb-2 truncate">{instancia}</p>
+                                                                        <div className="relative">
+                                                                            <span className="absolute left-0 top-1/2 -translate-y-1/2 text-slate-300 text-xs">$</span>
+                                                                            <input 
+                                                                                type="number" 
+                                                                                step="0.001" 
+                                                                                value={tarifa}
+                                                                                onChange={(e) => handleNubeTarifaUpdate(region, tarifaKey, e.target.value)}
+                                                                                className="w-full pl-3 bg-transparent border-none outline-none text-sm font-black text-slate-800 focus:ring-0"
+                                                                            />
+                                                                        </div>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+
+                                            {/* 🆕 FÓRMULA B-DRIVE */}
+                                            <div className="bg-white rounded-[3rem] p-8 md:p-12 border border-slate-100 shadow-sm">
+                                                <h4 className="text-[11px] font-black text-slate-900 uppercase mb-10 flex items-center tracking-[0.3em]">
+                                                    <i data-lucide="calculator" className="w-5 h-5 mr-4 text-cyan-500"></i>Fórmula B-drive (Servicio 1)
+                                                </h4>
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                                                    <div>
+                                                        <label className="text-[9px] font-black text-slate-400 uppercase block mb-3">Margen Contractual (%)</label>
+                                                        <input 
+                                                            type="number" 
+                                                            value={selectedService.formula_bdrive?.margen_contractual_pct || 12}
+                                                            onChange={(e) => handleFormulaBdriveUpdate('margen_contractual_pct', e.target.value)}
+                                                            className="w-full px-6 py-4 bg-slate-50 rounded-2xl border-2 border-transparent focus:border-cyan-500/20 outline-none text-xl font-black"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-[9px] font-black text-slate-400 uppercase block mb-3">Costo Personal Jr (MXN/mes)</label>
+                                                        <input 
+                                                            type="number" 
+                                                            value={selectedService.formula_bdrive?.costo_personal_jr_mes || 14000}
+                                                            onChange={(e) => handleFormulaBdriveUpdate('costo_personal_jr_mes', e.target.value)}
+                                                            className="w-full px-6 py-4 bg-slate-50 rounded-2xl border-2 border-transparent focus:border-cyan-500/20 outline-none text-xl font-black"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-[9px] font-black text-slate-400 uppercase block mb-3">Adicional Proyecto (%)</label>
+                                                        <input 
+                                                            type="number" 
+                                                            value={selectedService.formula_bdrive?.adicional_proyecto_pct || 10}
+                                                            onChange={(e) => handleFormulaBdriveUpdate('adicional_proyecto_pct', e.target.value)}
+                                                            className="w-full px-6 py-4 bg-slate-50 rounded-2xl border-2 border-transparent focus:border-cyan-500/20 outline-none text-xl font-black"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-[9px] font-black text-slate-400 uppercase block mb-3">Descuento Uso Sostenido (%)</label>
+                                                        <input 
+                                                            type="number" 
+                                                            value={selectedService.formula_bdrive?.descuento_uso_sostenido_pct || 30}
+                                                            onChange={(e) => handleFormulaBdriveUpdate('descuento_uso_sostenido_pct', e.target.value)}
+                                                            className="w-full px-6 py-4 bg-slate-50 rounded-2xl border-2 border-transparent focus:border-cyan-500/20 outline-none text-xl font-black"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-[9px] font-black text-slate-400 uppercase block mb-3">Horas para Descuento</label>
+                                                        <input 
+                                                            type="number" 
+                                                            value={selectedService.formula_bdrive?.horas_para_descuento || 730}
+                                                            onChange={(e) => handleFormulaBdriveUpdate('horas_para_descuento', e.target.value)}
+                                                            className="w-full px-6 py-4 bg-slate-50 rounded-2xl border-2 border-transparent focus:border-cyan-500/20 outline-none text-xl font-black"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* 🆕 STORAGE */}
+                                            <div className="bg-white rounded-[3rem] p-8 md:p-12 border border-slate-100 shadow-sm">
+                                                <h4 className="text-[11px] font-black text-slate-900 uppercase mb-10 flex items-center tracking-[0.3em]">
+                                                    <i data-lucide="hard-drive" className="w-5 h-5 mr-4 text-cyan-500"></i>Almacenamiento
+                                                </h4>
+                                                <div className="max-w-md">
+                                                    <label className="text-[9px] font-black text-slate-400 uppercase block mb-3">Precio por GB/mes (USD)</label>
+                                                    <div className="relative">
+                                                        <span className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300 font-black text-2xl">$</span>
+                                                        <input 
+                                                            type="number" 
+                                                            step="0.001"
+                                                            value={selectedService.storage?.precio_gb_mes_usd || 0.020}
+                                                            onChange={(e) => {
+                                                                const updated = JSON.parse(JSON.stringify(selectedService));
+                                                                if (!updated.storage) updated.storage = {};
+                                                                updated.storage.precio_gb_mes_usd = parseFloat(e.target.value) || 0;
+                                                                setSelectedService(updated);
+                                                            }}
+                                                            className="w-full pl-14 pr-8 py-5 bg-slate-50 rounded-[2rem] border-2 border-transparent focus:border-cyan-500/20 outline-none text-2xl font-black text-slate-800"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </>
+                                    )}
+
+                                    {/* MODO PLANES (WORKSPACE / CORREO) */}
+                                    {selectedService.planes && (
+                                        <>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-10">
+                                                {Object.keys(selectedService.planes).map(pId => (
+                                                    <div key={pId} className="bg-white rounded-[2.5rem] md:rounded-[3.5rem] p-8 md:p-10 border border-slate-100 shadow-sm hover:border-cyan-200 transition-all group flex flex-col min-h-[350px] relative overflow-hidden">
+                                                        <span className="text-[9px] font-black text-cyan-600 bg-cyan-50 px-4 py-2 rounded-full uppercase tracking-widest w-fit mb-8 border border-cyan-100 relative z-10">{pId}</span>
+                                                        <h4 className="text-xl md:text-2xl font-black text-slate-800 mb-10 leading-tight tracking-tight relative z-10 truncate">{selectedService.planes[pId].nombre}</h4>
+                                                        <div className="flex-1 space-y-8 relative z-10">
+                                                            <div className="bg-slate-50 p-6 md:p-8 rounded-[2.5rem] shadow-inner transition-colors group-hover:bg-slate-50/40">
+                                                                <label className="text-[9px] font-black text-slate-400 uppercase block mb-2 tracking-widest">Fee Mensual</label>
+                                                                <div className="relative">
+                                                                    <span className="absolute left-0 top-1/2 -translate-y-1/2 text-slate-300 font-black text-3xl">$</span>
+                                                                    <input 
+                                                                        type="number" 
+                                                                        value={selectedService.planes[pId].precio_mensual || 0} 
+                                                                        onChange={(e) => handlePriceUpdate(pId, e.target.value)} 
+                                                                        className="w-full pl-8 bg-transparent border-none outline-none text-3xl md:text-4xl font-black text-slate-800 focus:ring-0 transition-all"
+                                                                    />
+                                                                </div>
+                                                            </div>
+                                                            <div className="grid grid-cols-2 gap-4">
+                                                                <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 text-center"><p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Espacio</p><p className="text-xs font-bold text-slate-700 mt-1">{selectedService.planes[pId].almacenamiento || '---'}</p></div>
+                                                                <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 text-center"><p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Meet</p><p className="text-xs font-bold text-slate-700 mt-1">{selectedService.planes[pId].participantes_meet ? `${selectedService.planes[pId].participantes_meet} pax` : '---'}</p></div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+
+                                            {/* 🆕 LÍMITES CORREO */}
+                                            <div className="bg-white rounded-[3rem] p-8 md:p-12 border border-slate-100 shadow-sm">
+                                                <h4 className="text-[11px] font-black text-slate-900 uppercase mb-10 flex items-center tracking-[0.3em]">
+                                                    <i data-lucide="shield" className="w-5 h-5 mr-4 text-cyan-500"></i>Reglas de Derivación
+                                                </h4>
+                                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                                    <div>
+                                                        <label className="text-[9px] font-black text-slate-400 uppercase block mb-3">Usuarios Máximo Automático</label>
+                                                        <input 
+                                                            type="number" 
+                                                            value={selectedService.limites?.usuarios_max_automatico || 300}
+                                                            onChange={(e) => {
+                                                                const updated = JSON.parse(JSON.stringify(selectedService));
+                                                                if (!updated.limites) updated.limites = {};
+                                                                updated.limites.usuarios_max_automatico = parseInt(e.target.value) || 0;
+                                                                setSelectedService(updated);
+                                                            }}
+                                                            className="w-full px-6 py-4 bg-slate-50 rounded-2xl border-2 border-transparent focus:border-cyan-500/20 outline-none text-xl font-black"
+                                                        />
+                                                    </div>
+                                                    <div className="flex items-center space-x-4 bg-slate-50 p-6 rounded-2xl">
+                                                        <input 
+                                                            type="checkbox" 
+                                                            checked={selectedService.limites?.derivar_si_migracion || false}
+                                                            onChange={(e) => {
+                                                                const updated = JSON.parse(JSON.stringify(selectedService));
+                                                                if (!updated.limites) updated.limites = {};
+                                                                updated.limites.derivar_si_migracion = e.target.checked;
+                                                                setSelectedService(updated);
+                                                            }}
+                                                            className="w-6 h-6 rounded-lg border-2 border-slate-300 text-cyan-500 focus:ring-2 focus:ring-cyan-500"
+                                                        />
+                                                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Derivar si es Migración</label>
+                                                    </div>
+                                                    <div className="flex items-center space-x-4 bg-slate-50 p-6 rounded-2xl">
+                                                        <input 
+                                                            type="checkbox" 
+                                                            checked={selectedService.limites?.derivar_si_enterprise || false}
+                                                            onChange={(e) => {
+                                                                const updated = JSON.parse(JSON.stringify(selectedService));
+                                                                if (!updated.limites) updated.limites = {};
+                                                                updated.limites.derivar_si_enterprise = e.target.checked;
+                                                                setSelectedService(updated);
+                                                            }}
+                                                            className="w-6 h-6 rounded-lg border-2 border-slate-300 text-cyan-500 focus:ring-2 focus:ring-cyan-500"
+                                                        />
+                                                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Derivar si pide Enterprise</label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </>
+                                    )}
+
+                                    {/* FALLBACK: JSON CRUDO */}
+                                    {!selectedService.matriz_precios && !selectedService.regla_calculo && !selectedService.planes && !selectedService.precios_por_agente_mes_mxn && !selectedService.tipos_instancia && (
+                                        <div className="bg-white rounded-[3rem] p-10 border border-slate-100 shadow-sm space-y-6">
+                                            <div className="bg-amber-50 border border-amber-200 p-6 rounded-[2rem] flex items-start space-x-4 shadow-sm">
+                                                <i data-lucide="alert-circle" className="text-amber-500 w-6 h-6 shrink-0 mt-1"></i>
+                                                <div>
+                                                    <h5 className="font-black text-amber-900 uppercase text-xs tracking-widest leading-none">Estructura Nueva Detectada</h5>
+                                                    <p className="text-amber-700 text-xs mt-2 leading-relaxed opacity-80 font-medium">Puedes editar el JSON crudo directamente. Los cambios se sincronizarán con Cloudflare Edge de forma segura.</p>
+                                                </div>
+                                            </div>
+                                            <textarea 
+                                                className="w-full h-[450px] p-10 bg-slate-900 text-cyan-400 font-mono text-[11px] rounded-[3rem] border-none outline-none focus:ring-8 focus:ring-cyan-500/5 custom-scrollbar leading-loose shadow-2xl"
+                                                value={JSON.stringify(selectedService, null, 2)}
+                                                onChange={(e) => {
+                                                    try {
+                                                        const parsed = JSON.parse(e.target.value);
+                                                        setSelectedService(parsed);
+                                                    } catch(err) {}
+                                                }}
+                                            ></textarea>
+                                        </div>
+                                    )}
                                 </div>
                             )}
 
@@ -1242,4 +1237,3 @@
     </script>
 </body>
 </html>
-
