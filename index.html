@@ -133,10 +133,17 @@
                         fetch(`${API_BASE_URL}/api/services`),
                         fetch(`${API_BASE_URL}/api/config/global`)
                     ]);
-                    if (qRes.ok) setQuotes(await qRes.json());
-                    if (sRes.ok) setServices(await sRes.json());
+                    if (qRes.ok) {
+                        const qData = await qRes.json();
+                        setQuotes(qData.quotes || qData);
+                    }
+                    if (sRes.ok) {
+                        const sData = await sRes.json();
+                        setServices(sData.services || sData);
+                    }
                     if (gRes.ok) {
-                        setGlobalConfig(await gRes.json());
+                        const gData = await gRes.json();
+                        setGlobalConfig(gData.config || gData);
                     } else {
                         // Crear config por defecto si no existe
                         setGlobalConfig({
